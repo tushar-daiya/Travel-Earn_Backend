@@ -18,7 +18,7 @@ const dotenv = require('dotenv');
 // const notification = require('./user/router/notification.route')
 // const payment = require('./payment/router/payment.route')
 // const earning = require('./traveller/router/earningroute')
-const adminRoutes = require('./admin/router/Admin.route')
+const adminRoutes = require('./router/Admin.route')
 // Initialize express app and load environment variables
 // const editprofile = require('./user/router/editprofileroute')
 // const address = require('./traveller/router/addressroute')
