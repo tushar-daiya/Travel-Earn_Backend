@@ -35,6 +35,8 @@ module.exports.login = async (req, res) => {
       { expiresIn: '24h' }
     );
     
+    console.log(token);
+
     res.status(200).json({
       message: 'Login successful',
       token,
