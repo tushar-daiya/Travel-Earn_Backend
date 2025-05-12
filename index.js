@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const http = require('http');
+const https = require('https');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -37,7 +37,7 @@ const app = express();
 app.use(express.json());
 
 
-const server = http.createServer(app);
+const server = https.createServer(app);
 
 // Middlewares
 app.use(morgan('dev'));
