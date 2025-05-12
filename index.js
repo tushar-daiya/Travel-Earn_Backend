@@ -14,7 +14,11 @@ app.use(express.json());
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors());
+app.use(cors({
+  origin: 'https://admin.timestringssystem.com',
+  credentials: true, // if you're using cookies or auth headers
+}));
+
 
 const PORT = process.env.PORT || 5002;
 const Mongo_URI = process.env.MONGO_URI;
