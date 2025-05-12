@@ -14,8 +14,8 @@ const app = express();
 app.use(express.json());
 
 const options = {
-  key: fs.readFileSync('./certs/key.pem'),
-  cert: fs.readFileSync('./certs/cert.pem'),
+  key: fs.readFileSync('/etc/ssl/myapp/key.pem'),
+  cert: fs.readFileSync('/etc/ssl/myapp/cert.pem'),
 };
 
 
