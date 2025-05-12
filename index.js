@@ -15,7 +15,7 @@ app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors({
-  origin: 'https://admin.timestringssystem.com',
+  origin: '*',
   credentials: true, // if you're using cookies or auth headers
 }));
 
