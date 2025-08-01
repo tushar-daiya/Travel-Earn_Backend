@@ -8,7 +8,7 @@ exports.getFareConfig = async (req, res) => {
     }
     res.json(config);
   };
-  
+
   // Update config
   exports.updateFareConfig = async (req, res) => {
     let config = await FareConfig.findOne();

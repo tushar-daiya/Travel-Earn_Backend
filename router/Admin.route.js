@@ -21,6 +21,8 @@ router.get('/getDashboardStats', authenticateAdmin, getDahsboardStats)
 router.get('/getTotalUsers', authenticateAdmin, getTotalUsers)
 router.get('/getTotalEarnings', authenticateAdmin, getTotalEarnings)
 router.get('/getTransactionHistory', authenticateAdmin, getTransactionHistory)
+// router.get('/api/travel-hitory', authenticateAdmin, getTravellersHistory)
+// router.get('/api/consignment-hitory', authenticateAdmin, getConsignmentHistory)
 router.get('/travelHistory/:phoneNumber', authenticateAdmin, getTravelHistory)
 router.get('/delete/:userId', authenticateAdmin, authorizeRole('superadmin'), deleteProfileByUserId);
 router.put('/update/:id', authenticateAdmin, authorizeRole('superadmin'), updateAdminProfile)

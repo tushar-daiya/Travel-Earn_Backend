@@ -24,12 +24,7 @@ const consignmenttocarryrequestSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ["Accepted", "Rejected"],
-    }
-    
-    
-    
- 
-    
+    } 
 });
 
 module.exports = mongoose.model("consignment_carry_rider", consignmenttocarryrequestSchema );

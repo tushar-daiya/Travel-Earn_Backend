@@ -486,7 +486,7 @@ module.exports.getTotalEarnings = async (req, res) => {
               }
             }
           ]);
-      
+
           const response = result[0] || { totalEarnings: 0, transactions: [] };
       
           res.status(200).json({
