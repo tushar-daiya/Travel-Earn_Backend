@@ -447,617 +447,375 @@ class ReportController {
   // Get Traveler Report (Enhanced) - Now shows each travel separately with dummy data
   static async getTravelerReport(req, res) {
     try {
-      console.log('📊 Generating Enhanced Traveler Report (Individual Travels) with dummy data...');
-      
-      // Generate dummy data with consistent phone numbers
-      const userProfiles = ReportController.generateDummyUsers();
-      const allTravelDetails = ReportController.generateDummyTravelDetails();
-      const consignmentHistory = ReportController.generateDummyConsignmentHistory();
-      const earnings = ReportController.generateDummyEarnings();
-      
-      // Create lookup maps
-      const userMap = ReportController.createUserMap(userProfiles);
-      const travelerProfiles = userProfiles.filter(u => u.role === 'traveler');
-      const earningMap = {};
-      earnings.forEach(earning => {
-        earningMap[earning.phoneNumber] = earning;
-      });
-      
-      // Create consignment history map for quick lookup
-      const consignmentHistoryMap = {};
-      consignmentHistory.forEach(history => {
-        if (history.traveldetails && history.traveldetails.length > 0) {
-          history.traveldetails.forEach(travelDetail => {
-            if (!consignmentHistoryMap[travelDetail.travelId]) {
-              consignmentHistoryMap[travelDetail.travelId] = [];
-            }
-            consignmentHistoryMap[travelDetail.travelId].push({
-              consignmentId: history.consignmentId,
-              description: history.description,
-              status: history.status,
-              expectedEarning: history.expectedEarning,
-              distance: history.distance,
-              category: history.category,
-              pickup: history.pickupLocation,
-              delivery: history.deliveryLocation,
-              senderPhoneNumber: history.senderPhoneNumber
-            });
-          });
-        }
-      });
-
-      const travelReports = await Promise.all(
-        allTravelDetails.map(async (travel) => {
-          let traveler = userMap[travel.phoneNumber];
-          let userEarnings = earningMap[travel.phoneNumber];
-          
-          // If traveler not found, assign a random traveler from the first 10 users
-          if (!traveler) {
-            const randomTravelerIndex = Math.floor(Math.random() * 10);
-            const randomTraveler = userProfiles[randomTravelerIndex];
-            if (randomTraveler) {
-              traveler = randomTraveler;
-              userEarnings = earningMap[randomTraveler.phoneNumber];
-            }
-          }
-          
-          // Get consignments associated with this travel
-          const associatedConsignments = consignmentHistoryMap[travel.travelId] || [];
-
-          // Calculate earnings for this specific travel
-          const travelEarning = parseFloat(travel.payableAmount) || 0;
-          const consignmentEarnings = associatedConsignments.reduce((sum, consignment) => {
-            return sum + (parseFloat(consignment.expectedEarning) || 0);
-          }, 0);
-          const totalEarning = Math.max(travelEarning, consignmentEarnings);
-
-          // Get recent transactions for this traveler
-          const recentTransactions = userEarnings?.transactions?.slice(-5).map(t => ({
-            title: t.title,
-            amount: ReportController.formatAmount(t.amount),
-            status: t.status,
-            paymentMethod: t.paymentMethod,
-            timestamp: ReportController.formatDate(t.timestamp)
-          })) || [];
-
-          return {
-            travelId: travel.travelId,
-            travelerId: traveler ? (traveler.userId || traveler._id.toString()) : travel.phoneNumber,
-            travelerName: traveler ? `${traveler.firstName || ''} ${traveler.lastName || ''}`.trim() : 'Unknown',
-            phoneNo: travel.phoneNumber,
-            email: traveler?.email || 'N/A',
-            address: traveler ? `${traveler.currentLocation?.coordinates?.[1] || ''}, ${traveler.currentLocation?.coordinates?.[0] || ''}` : 'Unknown',
-            
-            // Travel specific details
-            leavingLocation: travel.Leavinglocation,
-            goingLocation: travel.Goinglocation,
-            fullFrom: travel.fullFrom,
-            fullTo: travel.fullTo,
-            travelMode: travel.travelMode,
-            travelmode_number: travel.travelmode_number,
-            travelDate: ReportController.formatDate(travel.travelDate),
-            expectedStartTime: travel.expectedStartTime,
-            expectedEndTime: travel.expectedEndTime,
-            endDate: ReportController.formatDate(travel.endDate),
-            distance: travel.distance,
-            duration: travel.duration,
-            expectedearning: ReportController.formatAmount(travel.expectedearning),
-            payableAmount: ReportController.formatAmount(travel.payableAmount),
-            weight: travel.weight,
-            TE: travel.TE,
-            discount: ReportController.formatAmount(travel.discount),
-            status: travel.status,
-            startedat: travel.startedat ? ReportController.formatDate(travel.startedat) : 'N/A',
-            endedat: travel.endedat ? ReportController.formatDate(travel.endedat) : 'N/A',
-            
-            // Associated consignments
-            noOfConsignment: associatedConsignments.length,
-            associatedConsignments: associatedConsignments.map(c => ({
-              ...c,
-              expectedEarning: ReportController.formatAmount(c.expectedEarning)
-            })),
-            
-            // Financial details
-            totalAmount: ReportController.formatAmount(totalEarning),
-            payment: totalEarning > 0 ? 'Paid' : 'Pending',
-            
-            // Traveler profile details
-            averageRating: traveler ? (traveler.averageRating || 0) : 0,
-            totalRating: traveler ? (traveler.totalrating || 0) : 0,
-            isVerified: traveler?.isVerified || false,
-            recentTransactions: recentTransactions,
-            
-            // Timestamps
-            createdAt: ReportController.formatDate(travel.createdAt),
-            updatedAt: ReportController.formatDate(travel.updatedAt),
-            travelerCreatedAt: ReportController.formatDate(traveler?.createdAt),
-            travelerLastUpdated: ReportController.formatDate(traveler?.lastUpdated)
-          };
-        })
-      );
-
-      console.log(`✅ Enhanced traveler report generated with ${travelReports.length} individual travel records`);
-      res.status(200).json(travelReports);
-    } catch (error) {
-      console.error('❌ Error fetching enhanced traveler report:', error);
-      res.status(500).json({ 
-        error: 'Internal server error', 
-        message: error.message 
-      });
-    }
-  }
-
-  // Get Sender Report (Enhanced) - Now shows each consignment separately with dummy data
-  static async getSenderReport(req, res) {
-    try {
-      console.log('📦 Generating Enhanced Sender Report (Individual Consignments) with dummy data...');
-      
-      // Generate dummy data with consistent phone numbers
-      const userProfiles = ReportController.generateDummyUsers();
-      const consignments = ReportController.generateDummyConsignments();
-      const consignmentHistory = ReportController.generateDummyConsignmentHistory();
-      const travelDetails = ReportController.generateDummyTravelDetails();
-      const requestForCarry = ReportController.generateDummyRequestForCarry();
-      
-      // Create lookup maps
-      const userMap = ReportController.createUserMap(userProfiles);
-      const travelMap = {};
-      travelDetails.forEach(travel => {
-        travelMap[travel.travelId] = travel;
-      });
-      const requestMap = {};
-      requestForCarry.forEach(request => {
-        if (!requestMap[request.consignmentId]) {
-          requestMap[request.consignmentId] = [];
-        }
-        requestMap[request.consignmentId].push(request);
-      });
-      
-      // Create consignment history map for quick lookup
-      const consignmentHistoryMap = {};
-      consignmentHistory.forEach(history => {
-        consignmentHistoryMap[history.consignmentId] = history;
-      });
-
-      const consignmentReports = await Promise.all(
-        consignments.map(async (consignment) => {
-          let sender = userMap[consignment.phoneNumber];
-          
-          // If sender not found, assign a random sender from the last 10 users
-          if (!sender) {
-            const randomSenderIndex = Math.floor(Math.random() * 10) + 10; // Last 10 users are senders
-            const randomSender = userProfiles[randomSenderIndex];
-            if (randomSender) {
-              sender = randomSender;
-            }
-          }
-          
-          // Get consignment history for this consignment
-          const history = consignmentHistoryMap[consignment.consignmentId];
-          
-          // Get request for carry data for this consignment
-          const requests = requestMap[consignment.consignmentId] || [];
-          const acceptedRequest = requests.find(r => r.status === 'Accepted');
-          
-          // Calculate amount for this specific consignment
-          const consignmentAmount = parseFloat(consignment.earning) || 0;
-
-          // Get traveler information if available
-          let traveler = null;
-          let travelerAcceptanceDate = null;
-          let travelMode = null;
-          let travelerId = 'N/A';
-          let amountToBePaidToTraveler = 0;
-          
-          if (history && history.traveldetails && history.traveldetails.length > 0) {
-            const latestTravelDetail = history.traveldetails[history.traveldetails.length - 1];
-            // Find traveler by phone number from travel details
-            const travelDetail = travelMap[latestTravelDetail.travelId];
-            if (travelDetail) {
-              traveler = userMap[travelDetail.phoneNumber];
-              travelerAcceptanceDate = latestTravelDetail.timestamp;
-              travelMode = latestTravelDetail.travelMode;
-              travelerId = traveler?._id?.toString() || travelDetail.phoneNumber;
-              amountToBePaidToTraveler = parseFloat(history.expectedEarning) || 0;
-            }
-          } else if (acceptedRequest) {
-            const travelDetail = travelMap[acceptedRequest.travelId];
-            if (travelDetail) {
-              traveler = userMap[travelDetail.phoneNumber];
-              travelerAcceptanceDate = acceptedRequest.createdAt;
-              travelMode = acceptedRequest.travelmode;
-              travelerId = traveler?._id?.toString() || travelDetail.phoneNumber;
-              amountToBePaidToTraveler = parseFloat(acceptedRequest.earning) || 0;
-            }
-          }
-          
-          // If still no traveler found, assign a random traveler from the first 10 users
-          if (!traveler) {
-            const randomTravelerIndex = Math.floor(Math.random() * 10);
-            const randomTraveler = userProfiles[randomTravelerIndex];
-            if (randomTraveler) {
-              traveler = randomTraveler;
-              travelerId = randomTraveler._id.toString();
-              travelerAcceptanceDate = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
-              travelMode = ['Car', 'Bike', 'Van', 'Truck', 'Auto'][Math.floor(Math.random() * 5)];
-              amountToBePaidToTraveler = parseFloat(consignment.earning) * 0.7; // 70% of consignment amount
-            }
-          }
-
-          // Calculate TnE amount
-          const tneAmount = consignmentAmount - amountToBePaidToTraveler;
-          const taxComponent = tneAmount * 0.18; // 18% tax
-
-          // Payment status logic
-          let senderPaymentStatus = 'Pending';
-          let travelerPaymentStatus = 'N/A';
-
-          if (consignmentAmount > 0) {
-            if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-              senderPaymentStatus = 'Paid';
-            } else if (consignment.status === 'Accepted' || consignment.status === 'In Progress') {
-              senderPaymentStatus = 'Paid';
-            } else {
-              senderPaymentStatus = 'Pending';
-            }
-          }
-
-          if (amountToBePaidToTraveler > 0) {
-            if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-              travelerPaymentStatus = 'Paid';
-            } else if (consignment.status === 'In Progress') {
-              travelerPaymentStatus = 'Partial';
-            } else {
-              travelerPaymentStatus = 'Pending';
-            }
-          }
-
-          // Get received date
-          let receivedDate = 'N/A';
-          if (history?.delivered) {
-            receivedDate = ReportController.formatDate(history.delivered);
-          } else if (acceptedRequest?.dateandtimeofdelivery) {
-            receivedDate = ReportController.formatDate(acceptedRequest.dateandtimeofdelivery);
-          } else if (acceptedRequest?.status === 'Delivered') {
-            receivedDate = ReportController.formatDate(acceptedRequest.updatedAt);
-          } else if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-            // If consignment is completed, generate a realistic delivery date
-            receivedDate = ReportController.formatDate(new Date(consignment.dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000));
-          }
-
-          return {
-            consignmentId: consignment.consignmentId,
-            consignmentStatus: consignment.status,
-            
-            // Sender information
-            senderId: sender ? (sender.userId || sender._id.toString()) : consignment.phoneNumber,
-            senderName: sender ? `${sender.firstName || ''} ${sender.lastName || ''}`.trim() : 'Unknown',
-            senderMobileNo: consignment.phoneNumber,
-            senderEmail: sender?.email || 'N/A',
-            senderAddress: consignment.startinglocation,
-            senderCurrentLocation: sender ? `${sender.currentLocation?.coordinates?.[1] || ''}, ${sender.currentLocation?.coordinates?.[0] || ''}` : 'Unknown',
-            
-            // Consignment details
-            description: consignment.Description,
-            category: consignment.category,
-            subcategory: consignment.subcategory,
-            weight: consignment.weight,
-            dimensionalweight: consignment.dimensionalweight,
-            dimensions: consignment.dimensions,
-            distance: consignment.distance,
-            duration: consignment.duration,
-            handleWithCare: consignment.handleWithCare,
-            specialRequest: consignment.specialRequest,
-            
-            // Recipient details
-            recepientName: consignment.recievername,
-            recepientAddress: consignment.goinglocation,
-            recepientPhoneNo: consignment.recieverphone,
-            
-            // Financial details
-            totalAmountSender: ReportController.formatAmount(consignmentAmount),
-            amountToBePaidToTraveler: ReportController.formatAmount(amountToBePaidToTraveler),
-            tneAmount: ReportController.formatAmount(tneAmount),
-            taxComponent: ReportController.formatAmount(taxComponent),
-            senderPaymentStatus: senderPaymentStatus,
-            travelerPaymentStatus: travelerPaymentStatus,
-            
-            // Traveler information
-            travelerId: travelerId,
-            travelerName: traveler ? `${traveler.firstName || ''} ${traveler.lastName || ''}`.trim() : 'N/A',
-            travelerMobileNo: traveler?.phoneNumber || 'N/A',
-            travelerAddress: traveler?.currentLocation ? `${traveler.currentLocation.coordinates?.[1] || ''}, ${traveler.currentLocation.coordinates?.[0] || ''}` : 'N/A',
-            travelerAcceptanceDate: ReportController.formatDate(travelerAcceptanceDate),
-            travelMode: travelMode || 'N/A',
-            hasTraveler: acceptedRequest ? 'Yes' : 'No',
-            
-            // Request details
-            totalRequests: requests.length,
-            acceptedRequests: acceptedRequest ? 1 : 0,
-            
-            // Dates
-            dateOfSending: ReportController.formatDate(consignment.dateOfSending),
-            receivedDate: receivedDate,
-            createdAt: ReportController.formatDate(consignment.createdAt),
-            updatedAt: ReportController.formatDate(consignment.updatedAt),
-            senderCreatedAt: ReportController.formatDate(sender?.createdAt),
-            senderLastUpdated: ReportController.formatDate(sender?.lastUpdated)
-          };
-        })
-      );
-
-      console.log(`✅ Enhanced sender report generated with ${consignmentReports.length} individual consignment records`);
-      res.status(200).json(consignmentReports);
-    } catch (error) {
-      console.error('❌ Error fetching enhanced sender report:', error);
-      res.status(500).json({ 
-        error: 'Internal server error', 
-        message: error.message 
-      });
-    }
-  }
-
-  // Get Consignment Consolidated Report (Enhanced) - Now uses dummy data
-  static async getConsignmentConsolidatedReport(req, res) {
-    try {
-      console.log('📊 Generating Enhanced Consignment Consolidated Report with dummy data...');
+      console.log('📊 Generating Traveler Report from Consignment Consolidated Data...');
       
       // Get query parameters for pagination
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100; // Limit to 100 records per request
+      const limit = parseInt(req.query.limit) || 100;
       const skip = (page - 1) * limit;
       
-      // Generate consistent phone numbers for better data mapping
-      const travelerPhoneNumbers = [];
-      const senderPhoneNumbers = [];
-      for (let i = 0; i < 10; i++) {
-        travelerPhoneNumbers.push(ReportController.generatePhoneNumber());
-        senderPhoneNumbers.push(ReportController.generatePhoneNumber());
+      console.log('📄 Pagination params:', { page, limit, skip });
+
+      const Consignment = require('../model/consignment.model');
+      
+      console.log('🔍 Starting traveler report from consolidated data...');
+      
+      // Debug: Check if we have any consignments at all
+      const totalConsignments = await Consignment.countDocuments();
+      console.log('📊 Total consignments in database:', totalConsignments);
+      
+      if (totalConsignments === 0) {
+        console.log('⚠️ No consignments found in database');
+        return res.status(200).json({
+          data: [],
+          pagination: {
+            currentPage: page,
+            totalPages: 0,
+            totalRecords: 0,
+            recordsPerPage: limit,
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+        });
       }
       
-      // Generate dummy data with consistent phone numbers
-      const userProfiles = ReportController.generateDummyUsers();
-      const allConsignments = ReportController.generateDummyConsignments();
-      const consignmentHistory = ReportController.generateDummyConsignmentHistory();
-      const travelDetails = ReportController.generateDummyTravelDetails();
-      const requestForCarry = ReportController.generateDummyRequestForCarry();
-      const earnings = ReportController.generateDummyEarnings();
-      
-      // Apply pagination to consignments
-      const consignmentsData = allConsignments.slice(skip, skip + limit);
-      const consignmentToCarryData = requestForCarry; // Using requestForCarry as consignmentToCarry
-      
-      // Create lookup maps for efficient relationship resolution
-      const userMap = ReportController.createUserMap(userProfiles);
-      
-      // Create travel map with phone number mapping
-      const travelMap = {};
-      const travelPhoneMap = {};
-      travelDetails.forEach(travel => {
-        travelMap[travel.travelId] = travel;
-        travelPhoneMap[travel.phoneNumber] = travel;
+      // Debug: Get a sample consignment to see the structure
+      const sampleConsignment = await Consignment.findOne();
+      console.log('🔍 Sample consignment structure:', {
+        consignmentId: sampleConsignment?.consignmentId,
+        phoneNumber: sampleConsignment?.phoneNumber,
+        earning: sampleConsignment?.earning,
+        status: sampleConsignment?.status,
+        startinglocation: sampleConsignment?.startinglocation
       });
       
-      // Create request map
-      const requestMap = {};
-      requestForCarry.forEach(request => {
-        requestMap[request.consignmentId] = request;
-      });
-      
-      // Create carry map
-      const carryMap = {};
-      consignmentToCarryData.forEach(carry => {
-        carryMap[carry.consignmentId] = carry;
-      });
-      
-      // Create earning map
-      const earningMap = {};
-      earnings.forEach(earning => {
-        earningMap[earning.phoneNumber] = earning;
-      });
-      
-      // Create consignment phone map
-      const consignmentPhoneMap = {};
-      allConsignments.forEach(consignment => {
-        consignmentPhoneMap[consignment.phoneNumber] = consignment;
-      });
-
-      const consolidatedReport = await Promise.all(
-        consignmentsData.map(async (consignment) => {
-          try {
-            // Find sender information
-            let sender = userMap[consignment.phoneNumber];
-            
-            // If sender not found, assign a random sender from the last 10 users
-            if (!sender) {
-              const randomSenderIndex = Math.floor(Math.random() * 10) + 10; // Last 10 users are senders
-              const randomSender = userProfiles[randomSenderIndex];
-              if (randomSender) {
-                sender = randomSender;
-              }
+      // Use the same aggregation pipeline as Consignment Consolidated Report
+      const report = await Consignment.aggregate([
+        // Debug: Add a stage to log initial data
+        {
+          $addFields: {
+            debug_initial: {
+              consignmentId: "$consignmentId",
+              phoneNumber: "$phoneNumber",
+              earning: "$earning",
+              earningType: { $type: "$earning" },
+              status: "$status"
             }
-            
-            // Find consignment history for this consignment
-            const history = consignmentHistory.find(h => h.consignmentId === consignment.consignmentId);
-            
-            // Find consignment to carry data
-            const carryData = carryMap[consignment.consignmentId];
-            
-            // Find request for carry data
-            const requestData = requestMap[consignment.consignmentId];
-            
-            // Find traveler information with enhanced logic
-            let traveler = null;
-            let travelerAcceptanceDate = null;
-            let travelMode = null;
-            let travelStartDate = null;
-            let travelEndDate = null;
-            let travelerId = 'N/A';
-            let amountToBePaidToTraveler = 0;
-            
-            // Enhanced traveler finding logic
-            if (history && history.traveldetails && history.traveldetails.length > 0) {
-              const latestTravelDetail = history.traveldetails[history.traveldetails.length - 1];
-              // Find traveler by phone number from travel details
-              const travelDetail = travelMap[latestTravelDetail.travelId];
-              if (travelDetail) {
-                traveler = userMap[travelDetail.phoneNumber];
-                travelerAcceptanceDate = latestTravelDetail.timestamp;
-                travelMode = latestTravelDetail.travelMode;
-                travelerId = traveler?._id?.toString() || travelDetail.phoneNumber;
-                amountToBePaidToTraveler = parseFloat(history.expectedEarning) || 0;
-                travelStartDate = travelDetail.travelDate;
-                travelEndDate = travelDetail.expectedEndTime;
-              }
-            } else if (carryData) {
-              // Try to find traveler from carry data
-              const travelDetail = travelMap[carryData.travelId];
-              if (travelDetail) {
-                traveler = userMap[travelDetail.phoneNumber];
-                travelerAcceptanceDate = carryData.createdAt;
-                travelMode = travelDetail.travelMode;
-                travelStartDate = travelDetail.travelDate;
-                travelEndDate = travelDetail.expectedEndTime;
-                travelerId = traveler?._id?.toString() || travelDetail.phoneNumber;
-                amountToBePaidToTraveler = parseFloat(carryData.earning) || 0;
-              }
-            } else if (requestData) {
-              // Try to find traveler from request data
-              const travelDetail = travelMap[requestData.travelId];
-              if (travelDetail) {
-                traveler = userMap[travelDetail.phoneNumber];
-                travelerAcceptanceDate = requestData.createdAt;
-                travelMode = requestData.travelmode;
-                travelStartDate = travelDetail.travelDate;
-                travelEndDate = travelDetail.expectedEndTime;
-                travelerId = traveler?._id?.toString() || travelDetail.phoneNumber;
-                amountToBePaidToTraveler = parseFloat(requestData.earning) || 0;
-              }
-            }
-            
-            // If still no traveler found, assign a random traveler from the first 10 users
-            if (!traveler) {
-              const randomTravelerIndex = Math.floor(Math.random() * 10);
-              const randomTraveler = userProfiles[randomTravelerIndex];
-              if (randomTraveler) {
-                traveler = randomTraveler;
-                travelerId = randomTraveler._id.toString();
-                travelerAcceptanceDate = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
-                travelMode = ['Car', 'Bike', 'Van', 'Truck', 'Auto'][Math.floor(Math.random() * 5)];
-                amountToBePaidToTraveler = parseFloat(consignment.earning) * 0.7; // 70% of consignment amount
-              }
-            }
-
-            // Enhanced amount calculations
-            const totalAmountSender = parseFloat(consignment.earning) || 0;
-            const tneAmount = totalAmountSender - amountToBePaidToTraveler;
-            const taxComponent = tneAmount * 0.18; // 18% tax
-
-            // Enhanced payment status logic
-            let senderPaymentStatus = 'Pending';
-            let travelerPaymentStatus = 'N/A';
-
-            // Sender payment status logic
-            if (totalAmountSender > 0) {
-              if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-                senderPaymentStatus = 'Paid';
-              } else if (consignment.status === 'Accepted' || consignment.status === 'In Progress') {
-                senderPaymentStatus = 'Paid';
-              } else {
-                senderPaymentStatus = 'Pending';
-              }
-            }
-
-            // Traveler payment status logic
-            if (amountToBePaidToTraveler > 0) {
-              if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-                travelerPaymentStatus = 'Paid';
-              } else if (consignment.status === 'In Progress') {
-                travelerPaymentStatus = 'Partial';
-              } else {
-                travelerPaymentStatus = 'Pending';
-              }
-            }
-
-            // Enhanced received date logic
-            let receivedDate = 'N/A';
-            if (history?.delivered) {
-              receivedDate = ReportController.formatDate(history.delivered);
-            } else if (carryData?.dateandtimeofdelivery) {
-              receivedDate = ReportController.formatDate(carryData.dateandtimeofdelivery);
-            } else if (carryData?.status === 'Delivered') {
-              receivedDate = ReportController.formatDate(carryData.updatedAt);
-            } else if (consignment.status === 'Completed' || consignment.status === 'Delivered') {
-              // If consignment is completed, generate a realistic delivery date
-              receivedDate = ReportController.formatDate(new Date(consignment.dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000));
-            }
-
-            // Get traveler earnings data
-            const travelerEarnings = earningMap[traveler?.phoneNumber];
-            const travelerTotalEarnings = travelerEarnings?.totalEarnings || 0;
-            
-            // If no earnings found, generate realistic earnings
-            const finalTravelerEarnings = travelerTotalEarnings || ReportController.formatAmount(Math.random() * 50000 + 10000);
-
-            return {
-              consignmentId: consignment.consignmentId,
-              consignmentStatus: consignment.status,
-              senderId: sender?._id?.toString() || consignment.phoneNumber,
-              senderName: sender ? `${sender.firstName || ''} ${sender.lastName || ''}`.trim() : 'Unknown',
-              senderMobileNo: consignment.phoneNumber,
-              senderAddress: consignment.startinglocation,
-              totalAmountSender: ReportController.formatAmount(totalAmountSender),
-              paymentStatus: senderPaymentStatus,
-              travelerId: travelerId,
-              travelerAcceptanceDate: ReportController.formatDate(travelerAcceptanceDate),
-              travelerName: traveler ? `${traveler.firstName || ''} ${traveler.lastName || ''}`.trim() : 'N/A',
-              travelerMobileNo: traveler?.phoneNumber || 'N/A',
-              travelerAddress: traveler?.currentLocation ? `${traveler.currentLocation.coordinates?.[1] || ''}, ${traveler.currentLocation.coordinates?.[0] || ''}` : 'N/A',
-              amountToBePaidToTraveler: ReportController.formatAmount(amountToBePaidToTraveler),
-              travelerPaymentStatus: travelerPaymentStatus,
-              travelerTotalEarnings: finalTravelerEarnings,
-              travelMode: travelMode || 'N/A',
-              travelStartDate: ReportController.formatDate(travelStartDate),
-              travelEndDate: ReportController.formatDate(travelEndDate),
-              recepientName: consignment.recievername,
-              recepientAddress: consignment.goinglocation,
-              recepientPhoneNo: consignment.recieverphone,
-              receivedDate: receivedDate,
-              tneAmount: ReportController.formatAmount(tneAmount),
-              taxComponent: ReportController.formatAmount(taxComponent),
-              // Additional enhanced fields
-              weight: consignment.weight,
-              category: consignment.category,
-              subcategory: consignment.subcategory,
-              description: consignment.Description,
-              dimensions: consignment.dimensions,
-              distance: consignment.distance,
-              duration: consignment.duration,
-              handleWithCare: consignment.handleWithCare,
-              specialRequest: consignment.specialRequest,
-              dateOfSending: ReportController.formatDate(consignment.dateOfSending),
-              createdAt: ReportController.formatDate(consignment.createdAt),
-              updatedAt: ReportController.formatDate(consignment.updatedAt)
-            };
-          } catch (itemError) {
-            console.error(`❌ Error processing consignment ${consignment.consignmentId}:`, itemError);
-            // Return a basic record with error information
-            return {
-              consignmentId: consignment.consignmentId,
-              consignmentStatus: consignment.status,
-              error: 'Failed to process this record',
-              message: itemError.message
-            };
           }
-        })
-      );
+        },
+        
+        // First get carryInfo to find travelId
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        
+        // Lookup travel details using travelId from carryInfo
+        {
+          $lookup: {
+            from: "traveldetails",
+            localField: "carryInfo.travelId",
+            foreignField: "travelId",
+            as: "travelDetails"
+          }
+        },
+        
+        // Debug: Log after travel details lookup
+        {
+          $addFields: {
+            debug_travelDetails: {
+              travelDetailsCount: { $size: "$travelDetails" },
+              travelDetailsSample: { $arrayElemAt: ["$travelDetails", 0] },
+              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
+            }
+          }
+        },
+        
+        // Lookup traveler profiles
+        {
+          $lookup: {
+            from: "profiles",
+            localField: "travelDetails.phoneNumber",
+            foreignField: "phoneNumber",
+            as: "travelerProfiles"
+          }
+        },
+        
+        // Lookup consignment history
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        
+        // Debug: Log after consignment history lookup
+        {
+          $addFields: {
+            debug_consignmentHistory: {
+              historyCount: { $size: "$consignmentHistory" },
+              historySample: { $arrayElemAt: ["$consignmentHistory", 0] }
+            }
+          }
+        },
+        
+        // Lookup rider request
+        {
+          $lookup: {
+            from: "requestforcarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        
+        // Lookup carry info
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        
+        // Debug: Log after all lookups
+        {
+          $addFields: {
+            debug_allLookups: {
+              riderRequestCount: { $size: "$riderRequest" },
+              carryInfoCount: { $size: "$carryInfo" },
+              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
+            }
+          }
+        },
+        
+        // Filter: Only include consignments that have valid travel information
+        // This ensures we only show consignments that are actually being carried by travelers
+        {
+          $match: {
+            $and: [
+              { "carryInfo.0": { $exists: true } },           // Must have carry info
+              { "carryInfo.0.travelId": { $exists: true } }   // Must have a valid travelId
+            ]
+          }
+        },
+        
+        // Project traveler-specific fields (each row is a unique travel)
+        {
+          $project: {
+            // Debug fields
+            debug_initial: 1,
+            debug_travelDetails: 1,
+            debug_consignmentHistory: 1,
+            debug_allLookups: 1,
+            
+            "Traveler Id": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
+                { $arrayElemAt: ["$travelDetails.userId", 0] },
+                "N/A"
+              ]
+            },
+            "Name": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.username", 0] },
+                { $arrayElemAt: ["$travelerProfiles.name", 0] },
+                "Unknown"
+              ]
+            },
+            "Phone No": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
+                "N/A"
+              ]
+            },
+            "Address": {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: {
+                      $and: [
+                        { $ne: [{ $arrayElemAt: ["$travelDetails.Leavinglocation", 0] }, null] },
+                        { $ne: [{ $arrayElemAt: ["$travelDetails.Goinglocation", 0] }, null] }
+                      ]
+                    },
+                    then: {
+                      $concat: [
+                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.Leavinglocation", 0] }, ""] },
+                        " to ",
+                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.Goinglocation", 0] }, ""] }
+                      ]
+                    },
+                    else: {
+                      $ifNull: [
+                        {
+                          $concat: [
+                            { $ifNull: [{ $arrayElemAt: ["$carryInfo.startinglocation", 0] }, ""] },
+                            " to ",
+                            { $ifNull: [{ $arrayElemAt: ["$carryInfo.droplocation", 0] }, ""] }
+                          ]
+                        },
+                        "N/A"
+                      ]
+                    }
+                  }
+                },
+                "N/A"
+              ]
+            },
+            "State": "N/A", // Will be populated from profile lookup if needed
+            "No of Consignment": 1, // Each row represents one consignment
+            "Total Amount": {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                    then: 0, // For now, use 0 for string values (will be processed in JavaScript)
+                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                  }
+                },
+                {
+                  $ifNull: [
+                    {
+                      $cond: {
+                        if: { $eq: [{ $type: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }, "object"] },
+                        then: {
+                          $let: {
+                            vars: { earning: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } },
+                            in: "$$earning.totalFare"
+                          }
+                        },
+                        else: { $toDouble: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }
+                      }
+                    },
+                    { $ifNull: [{ $toDouble: "$earning" }, 0] }
+                  ]
+                }
+              ]
+            },
+            "Traveler's Consignment": "$consignmentId",
+            "Status of Consignment": {
+              $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"]
+            },
+            "Payment": {
+              $cond: {
+                if: { 
+                  $gt: [
+                    {
+                      $ifNull: [
+                        {
+                          $cond: {
+                            if: { $eq: [{ $type: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }, "object"] },
+                            then: {
+                              $let: {
+                                vars: { earning: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } },
+                                in: "$$earning.totalFare"
+                              }
+                            },
+                            else: { $toDouble: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }
+                          }
+                        },
+                        0
+                      ]
+                    },
+                    0
+                  ]
+                },
+                then: {
+                  $cond: {
+                    if: { 
+                      $in: [
+                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"] },
+                        ["Completed", "Delivered", "Accepted", "In Progress"]
+                      ]
+                    },
+                    then: "Paid",
+                    else: "Pending"
+                  }
+                },
+                else: "Pending"
+              }
+            },
+            
+            // Additional fields for API compatibility
+            travelId: { $arrayElemAt: ["$travelDetails.travelId", 0] },
+            travelMode: { $arrayElemAt: ["$travelDetails.travelMode", 0] },
+            travelDate: { $arrayElemAt: ["$travelDetails.travelDate", 0] },
+            status: { $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"] },
+            createdAt: { $arrayElemAt: ["$travelDetails.createdAt", 0] },
+            updatedAt: { $arrayElemAt: ["$travelDetails.updatedAt", 0] },
+            consignmentId: 1
+          }
+        },
+        
+        // Add pagination
+        { $skip: skip },
+        { $limit: limit }
+      ]);
+
+      // Debug: Log the last few results
+      console.log('🔍 Last 4 results from aggregation:');
+      const lastResults = report.slice(-4);
+      lastResults.forEach((item, index) => {
+        console.log(`📊 Result ${report.length - 3 + index}:`, {
+          consignmentId: item.consignmentId,
+          travelerId: item["Traveler Id"],
+          name: item["Name"],
+          phoneNo: item["Phone No"],
+          totalAmount: item["Total Amount"],
+          status: item["Status of Consignment"],
+          debug_initial: item.debug_initial,
+          debug_travelDetails: item.debug_travelDetails,
+          debug_consignmentHistory: item.debug_consignmentHistory,
+          debug_allLookups: item.debug_allLookups
+        });
+      });
+
+      // Process the report to extract earning values from strings (similar to Sender Report)
+      const processedReport = report.map(item => {
+        let totalAmount = item["Total Amount"];
+
+        // If Total Amount is 0 and we have carryInfo data, try to parse the earning string
+        if (totalAmount === 0 && item.debug_allLookups?.carryInfoSample?.earning) {
+          try {
+            const earningStr = item.debug_allLookups.carryInfoSample.earning;
+            if (typeof earningStr === 'string' && earningStr.includes('totalFare:')) {
+              // Extract totalFare using regex (traveler gets totalFare, not senderTotalPay)
+              const match = earningStr.match(/totalFare:\s*([0-9.]+)/);
+              if (match && match[1]) {
+                totalAmount = parseFloat(match[1]);
+                console.log(`✅ Extracted totalFare: ${totalAmount} from string for traveler`);
+              }
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to parse earning string: ${error.message}`);
+          }
+        }
+
+        return {
+          ...item,
+          "Total Amount": totalAmount,
+          // Remove debug fields for cleaner output
+          debug_initial: undefined,
+          debug_travelDetails: undefined,
+          debug_consignmentHistory: undefined,
+          debug_allLookups: undefined
+        };
+      });
 
       // Get total count for pagination
-      const totalCount = allConsignments.length;
+      const totalCount = await Consignment.countDocuments();
 
-      console.log(`✅ Enhanced consolidated report generated with ${consolidatedReport.length} records (page ${page})`);
+      console.log(`✅ Traveler report generated with ${processedReport.length} records (page ${page})`);
       res.status(200).json({
-        data: consolidatedReport,
+        data: processedReport,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(totalCount / limit),
@@ -1068,7 +826,1567 @@ class ReportController {
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching enhanced consignment consolidated report:', error);
+      console.error('❌ Error fetching traveler report:', error);
+      res.status(500).json({ 
+        error: 'Internal server error', 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  // Get Sender Report (Enhanced) - Now shows each consignment separately with dummy data
+  static async getSenderReport(req, res) {
+    try {
+      console.log('📦 Generating Sender Report from Consignment Consolidated Data...');
+      
+      // Get query parameters for pagination
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 100;
+      const skip = (page - 1) * limit;
+      
+      console.log('📄 Pagination params:', { page, limit, skip });
+
+      const Consignment = require('../model/consignment.model');
+      
+      console.log('🔍 Starting sender report from consolidated data...');
+      
+      // Debug: Check if we have any consignments at all
+      const totalConsignments = await Consignment.countDocuments();
+      console.log('📊 Total consignments in database:', totalConsignments);
+      
+      if (totalConsignments === 0) {
+        console.log('⚠️ No consignments found in database');
+        return res.status(200).json({
+          data: [],
+          pagination: {
+            currentPage: page,
+            totalPages: 0,
+            totalRecords: 0,
+            recordsPerPage: limit,
+            hasNextPage: false,
+            hasPreviousPage: false
+          }
+        });
+      }
+      
+      // Debug: Get a sample consignment to see the structure
+      const sampleConsignment = await Consignment.findOne();
+      console.log('🔍 Sample consignment structure:', {
+        consignmentId: sampleConsignment?.consignmentId,
+        phoneNumber: sampleConsignment?.phoneNumber,
+        earning: sampleConsignment?.earning,
+        status: sampleConsignment?.status,
+        startinglocation: sampleConsignment?.startinglocation,
+        senderFirstName: sampleConsignment?.senderFirstName,
+        senderLastName: sampleConsignment?.senderLastName
+      });
+      
+      // Use the same aggregation pipeline as Consignment Consolidated Report
+      const report = await Consignment.aggregate([
+        // Debug: Add a stage to log initial data
+        {
+          $addFields: {
+            debug_initial: {
+              consignmentId: "$consignmentId",
+              phoneNumber: "$phoneNumber",
+              earning: "$earning",
+              earningType: { $type: "$earning" },
+              status: "$status"
+            }
+          }
+        },
+        
+        // Lookup travel details
+        {
+          $lookup: {
+            from: "traveldetails",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "travelDetails"
+          }
+        },
+        
+        // Debug: Log after travel details lookup
+        {
+          $addFields: {
+            debug_travelDetails: {
+              travelDetailsCount: { $size: "$travelDetails" },
+              travelDetailsSample: { $arrayElemAt: ["$travelDetails", 0] }
+            }
+          }
+        },
+        
+        // Lookup consignment history
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        
+        // Debug: Log after consignment history lookup
+        {
+          $addFields: {
+            debug_consignmentHistory: {
+              historyCount: { $size: "$consignmentHistory" },
+              historySample: { $arrayElemAt: ["$consignmentHistory", 0] }
+            }
+          }
+        },
+        
+        // Lookup rider request
+        {
+          $lookup: {
+            from: "requestforcarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        
+        // Lookup carry info
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        
+        // Debug: Log after all lookups
+        {
+          $addFields: {
+            debug_allLookups: {
+              riderRequestCount: { $size: "$riderRequest" },
+              carryInfoCount: { $size: "$carryInfo" },
+              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
+            }
+          }
+        },
+        
+
+        
+        // Project sender-specific fields
+        {
+          $project: {
+            // Debug fields
+            debug_initial: 1,
+            debug_travelDetails: 1,
+            debug_consignmentHistory: 1,
+            debug_allLookups: 1,
+            
+            "Sender Id": {
+              $ifNull: ["$phoneNumber", "N/A"]
+            },
+            "Name": {
+              $ifNull: [
+                { $arrayElemAt: ["$consignmentHistory.senderName", 0] },
+                "Unknown"
+              ]
+            },
+            "Phone No": "$phoneNumber",
+            "Address": "$startinglocation",
+            "State": "N/A", // Will be populated from profile lookup if needed
+            "No of Consignment": 1, // Each row represents one consignment
+            "Total Amount": {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                    then: 0, // For now, use 0 for string values to avoid parsing issues
+                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                  }
+                },
+                {
+                  $ifNull: [
+                    { $toDouble: "$earning" },
+                    0
+                  ]
+                }
+              ]
+            },
+            "Sender's Consignment": "$consignmentId",
+            "Status of Consignment": "$status",
+            "Payment": {
+              $cond: {
+                if: { 
+                  $gt: [
+                    {
+                      $ifNull: [
+                        {
+                          $cond: {
+                            if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                            then: 0, // For now, use 0 for string values to avoid parsing issues
+                            else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                          }
+                        },
+                        {
+                          $ifNull: [
+                            { $toDouble: "$earning" },
+                            0
+                          ]
+                        }
+                      ]
+                    },
+                    0
+                  ]
+                },
+                then: {
+                  $cond: {
+                    if: { $in: ["$status", ["Completed", "Delivered", "Accepted", "In Progress"]] },
+                    then: "Paid",
+                    else: "Pending"
+                  }
+                },
+                else: "Pending"
+              }
+            },
+            
+            // Additional fields for API compatibility
+            consignmentId: 1,
+            consignmentStatus: 1,
+            senderId: "$phoneNumber",
+            senderName: {
+              $ifNull: [
+                { $arrayElemAt: ["$consignmentHistory.senderName", 0] },
+                "Unknown"
+              ]
+            },
+            senderMobileNo: 1,
+            senderEmail: "N/A",
+            senderAddress: 1,
+            description: 1,
+            category: 1,
+            subcategory: 1,
+            weight: 1,
+            dimensionalweight: 1,
+            dimensions: 1,
+            distance: 1,
+            duration: 1,
+            handleWithCare: 1,
+            specialRequest: 1,
+            recepientName: 1,
+            recepientAddress: 1,
+            recepientPhoneNo: 1,
+            totalAmountSender: {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                    then: 0, // For now, use 0 for string values to avoid parsing issues
+                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                  }
+                },
+                {
+                  $ifNull: [
+                    { $toDouble: "$earning" },
+                    0
+                  ]
+                }
+              ]
+            },
+            dateOfSending: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            senderCreatedAt: 1,
+            senderLastUpdated: 1
+          }
+        },
+        
+        // Add pagination
+        { $skip: skip },
+        { $limit: limit }
+      ]);
+
+      // Process the results to extract earning values from JSON strings
+      const processedReport = report.map(item => {
+        let totalAmount = item["Total Amount"];
+        
+        // If Total Amount is 0 and we have carryInfo data, try to parse the earning string
+        if (totalAmount === 0 && item.debug_allLookups?.carryInfoSample?.earning) {
+          try {
+            const earningStr = item.debug_allLookups.carryInfoSample.earning;
+            if (typeof earningStr === 'string' && earningStr.includes('senderTotalPay:')) {
+              // Extract senderTotalPay using regex
+              const match = earningStr.match(/senderTotalPay:\s*([0-9.]+)/);
+              if (match && match[1]) {
+                totalAmount = parseFloat(match[1]);
+                console.log(`✅ Extracted senderTotalPay: ${totalAmount} from string`);
+              }
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to parse earning string: ${error.message}`);
+          }
+        }
+        
+        return {
+          ...item,
+          "Total Amount": totalAmount,
+          // Remove debug fields for cleaner output
+          debug_initial: undefined,
+          debug_travelDetails: undefined,
+          debug_consignmentHistory: undefined,
+          debug_allLookups: undefined
+        };
+      });
+
+      // Debug: Log the last few processed results
+      console.log('🔍 Last 4 processed results:');
+      const lastProcessedResults = processedReport.slice(-4);
+      lastProcessedResults.forEach((item, index) => {
+        console.log(`📊 Result ${processedReport.length - 3 + index}:`, {
+          consignmentId: item.consignmentId,
+          senderId: item["Sender Id"],
+          name: item["Name"],
+          phoneNo: item["Phone No"],
+          totalAmount: item["Total Amount"],
+          status: item["Status of Consignment"]
+        });
+      });
+
+      // Get total count for pagination
+      const totalCount = await Consignment.countDocuments();
+
+      console.log(`✅ Sender report generated with ${processedReport.length} records (page ${page})`);
+      res.status(200).json({
+        data: processedReport,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalRecords: totalCount,
+          recordsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPreviousPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching sender report:', error);
+      res.status(500).json({ 
+        error: 'Internal server error', 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  // Get Consignment Consolidated Report (Enhanced) - Now uses dummy data
+  static async getConsignmentConsolidatedReport(req, res) {
+    try {
+      console.log('📊 Generating Enhanced Consignment Consolidated Report with MongoDB Aggregation...');
+      
+      // Get query parameters for pagination
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 100; // Limit to 100 records per request
+      const skip = (page - 1) * limit;
+      
+      // Get fare configuration
+      const FareConfig = require('../model/FareConfig');
+      const fareConfig = await FareConfig.findOne();
+      const margin = fareConfig?.margin || 0.2;
+      const TE = fareConfig?.TE || 0;
+
+      const Consignment = require('../model/consignment.model');
+      
+      const report = await Consignment.aggregate([
+        // Join with ConsignmentToCarry (only if exists)
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+
+        // Join with TravelDetails (only if carryInfo exists)
+        {
+          $lookup: {
+            from: "traveldetails",
+            let: { travelId: { $ifNull: [{ $arrayElemAt: ["$carryInfo.travelId", 0] }, null] } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$travelId", "$$travelId"] }
+                }
+              }
+            ],
+            as: "travelDetails"
+          }
+        },
+
+        // Join with ConsignmentRequestHistory
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+
+        // Project fields for Excel report with proper fallbacks
+        {
+          $project: {
+            _id: 0,
+            "Consignment ID": "$consignmentId",
+            "Consignment Status": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.status", 0] },
+                "$status"
+              ]
+            },
+            "Sender ID": "$phoneNumber",
+            "Sender Name": "$username",
+            "Sender Mobile No": "$phoneNumber",
+            "Sender Address": "$startinglocation",
+            "Total Amount Sender": {
+              $ifNull: [
+                { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+                "$earning"
+              ]
+            },
+            "Payment Status": {
+              $cond: {
+                if: { 
+                  $in: [
+                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                    ["Delivered", "Completed", "Collected"]
+                  ]
+                },
+                then: "Paid",
+                else: "Pending"
+              }
+            },
+            "Traveler Id": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.travelId", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Acceptance Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.createdAt", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Name": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.username", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Mobile No": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Address": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.Leavinglocation", 0] },
+                "N/A"
+              ]
+            },
+            "Amount to be paid to Traveler": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.earning", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Payment Status": {
+              $cond: {
+                if: { 
+                  $in: [
+                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                    ["Delivered", "Completed"]
+                  ]
+                },
+                then: "Paid",
+                else: {
+                  $cond: {
+                    if: { 
+                      $eq: [
+                        { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                        "In Transit"
+                      ]
+                    },
+                    then: "Partial",
+                    else: "Pending"
+                  }
+                }
+              }
+            },
+            "Travel Mode": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.travelMode", 0] },
+                "N/A"
+              ]
+            },
+            "Travel Start Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedStartTime", 0] },
+                "N/A"
+              ]
+            },
+            "Travel End Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedEndTime", 0] },
+                "N/A"
+              ]
+            },
+            "Recipient Name": "$recievername",
+            "Recipient Address": "$goinglocation",
+            "Recipient Phone no": "$recieverphone",
+            "Received Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.dateandtimeofdelivery", 0] },
+                "$dateOfSending"
+              ]
+            },
+            "T&E Amount": { $literal: TE },
+            "Tax Component": {
+              $multiply: [
+                {
+                  $toDouble: {
+                    $ifNull: [
+                      { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+                      "$earning"
+                    ]
+                  }
+                },
+                margin
+              ]
+            }
+          }
+        },
+        
+                // Add pagination
+        { $skip: skip },
+        { $limit: limit }
+      ]);
+
+      // Get total count for pagination
+      const totalCount = await Consignment.countDocuments();
+
+      console.log(`✅ Aggregation report generated with ${report.length} records (page ${page})`);
+      res.status(200).json({
+        data: report,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalRecords: totalCount,
+          recordsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPreviousPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching consignment consolidated report:', error);
+      res.status(500).json({ 
+        error: 'Internal server error', 
+        message: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  // New: Get Consignment Consolidated Report with Corrected Aggregation
+  static async getConsignmentConsolidatedReportAggregation(req, res) {
+    try {
+      console.log('📊 Generating Consignment Consolidated Report with MongoDB Aggregation...');
+      
+      // Get fare configuration
+      const FareConfig = require('../model/FareConfig');
+      const fareConfig = await FareConfig.findOne();
+      const margin = fareConfig?.margin || 0.2;
+      const TE = fareConfig?.TE || 0;
+      
+      console.log('🔧 Configuration loaded:', { margin, TE });
+
+      // Get query parameters for pagination
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 100;
+      const skip = (page - 1) * limit;
+      
+      console.log('📄 Pagination params:', { page, limit, skip });
+
+      const Consignment = require('../model/consignment.model');
+      
+      console.log('🔍 Starting aggregation pipeline...');
+      
+      // Test each stage separately for debugging
+      try {
+        console.log('🔍 Testing basic aggregation...');
+        const basicTest = await Consignment.aggregate([
+          { $limit: 1 },
+          { $project: { consignmentId: 1, earning: 1 } }
+        ]);
+              console.log('✅ Basic aggregation test passed');
+      console.log('📊 Sample data:', basicTest[0]);
+    } catch (testError) {
+      console.error('❌ Basic aggregation test failed:', testError.message);
+    }
+    
+    // Test the problematic earning fields
+    try {
+      console.log('🔍 Testing earning field access...');
+      const earningTest = await Consignment.aggregate([
+        { $limit: 1 },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            earning: 1,
+            "test.expectedEarning": { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+            "test.earningType": { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }
+          }
+        }
+      ]);
+      console.log('✅ Earning field test passed');
+      console.log('📊 Earning test data:', earningTest[0]);
+    } catch (earningError) {
+      console.error('❌ Earning field test failed:', earningError.message);
+    }
+    
+    // Test carryInfo.earning field
+    try {
+      console.log('🔍 Testing carryInfo.earning field...');
+      const carryInfoTest = await Consignment.aggregate([
+        { $limit: 1 },
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.carryInfoEarning": { $arrayElemAt: ["$carryInfo.earning", 0] },
+            "test.carryInfoEarningType": { $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+          }
+        }
+      ]);
+      console.log('✅ CarryInfo earning test passed');
+      console.log('📊 CarryInfo test data:', carryInfoTest[0]);
+    } catch (carryInfoError) {
+      console.error('❌ CarryInfo earning test failed:', carryInfoError.message);
+    }
+    
+    // Test the fixed earning field access
+    try {
+      console.log('🔍 Testing fixed earning field access...');
+      const fixedEarningTest = await Consignment.aggregate([
+        { $limit: 1 },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.fixedEarning": {
+              $cond: {
+                if: { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] },
+                then: {
+                  $let: {
+                    vars: { earning: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+                    in: "$$earning.senderTotalPay"
+                  }
+                },
+                else: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] }
+              }
+            }
+          }
+        }
+      ]);
+      console.log('✅ Fixed earning field test passed');
+      console.log('📊 Fixed earning test data:', fixedEarningTest[0]);
+    } catch (fixedEarningError) {
+      console.error('❌ Fixed earning field test failed:', fixedEarningError.message);
+    }
+    
+    // Test to find records with object-type expectedEarning
+    try {
+      console.log('🔍 Testing for object-type expectedEarning records...');
+      const objectEarningTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $match: {
+            "consignmentHistory.expectedEarning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.expectedEarning": { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+            "test.earningType": { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+            "test.isObject": { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] }
+          }
+        },
+        {
+          $match: {
+            "test.isObject": true
+          }
+        },
+        { $limit: 3 }
+      ]);
+      console.log('✅ Object-type expectedEarning test completed');
+      console.log('📊 Found object-type records:', objectEarningTest.length);
+      if (objectEarningTest.length > 0) {
+        console.log('📊 Sample object-type record:', objectEarningTest[0]);
+      }
+    } catch (objectEarningError) {
+      console.error('❌ Object-type expectedEarning test failed:', objectEarningError.message);
+    }
+    
+    // Test all earning fields to identify the problematic one
+    try {
+      console.log('🔍 Testing all earning fields...');
+      const allEarningTest = await Consignment.aggregate([
+        { $limit: 1 },
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.consignmentEarning": { $type: "$earning" },
+            "test.carryInfoEarning": { $type: { $arrayElemAt: ["$carryInfo.earning", 0] } },
+            "test.consignmentHistoryEarning": { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+            "test.riderRequestEarning": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.riderRequestSenderTotalPay": { $type: { $arrayElemAt: ["$riderRequest.earning.senderTotalPay", 0] } }
+          }
+        }
+      ]);
+      console.log('✅ All earning fields test completed');
+      console.log('📊 Earning field types:', allEarningTest[0]?.test);
+    } catch (allEarningError) {
+      console.error('❌ All earning fields test failed:', allEarningError.message);
+    }
+    
+    // Test specifically for riderRequest.earning objects
+    try {
+      console.log('🔍 Testing for riderRequest.earning objects...');
+      const riderRequestTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $match: {
+            "riderRequest.earning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.riderRequestEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.riderRequestEarningType": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.isObject": { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] }
+          }
+        },
+        {
+          $match: {
+            "test.isObject": true
+          }
+        },
+        { $limit: 3 }
+      ]);
+      console.log('✅ RiderRequest earning test completed');
+      console.log('📊 Found riderRequest object records:', riderRequestTest.length);
+      if (riderRequestTest.length > 0) {
+        console.log('📊 Sample riderRequest object record:', riderRequestTest[0]);
+      }
+    } catch (riderRequestError) {
+      console.error('❌ RiderRequest earning test failed:', riderRequestError.message);
+    }
+    
+    // Test to find ALL records with object-type riderRequest.earning
+    try {
+      console.log('🔍 Testing for ALL riderRequest.earning objects...');
+      const allRiderRequestTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $match: {
+            "riderRequest.earning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.riderRequestEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.riderRequestEarningType": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.isObject": { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] }
+          }
+        },
+        {
+          $match: {
+            "test.isObject": true
+          }
+        }
+      ]);
+      console.log('✅ All RiderRequest earning test completed');
+      console.log('📊 Total object-type riderRequest records found:', allRiderRequestTest.length);
+      if (allRiderRequestTest.length > 0) {
+        console.log('📊 All object-type records:');
+        allRiderRequestTest.forEach((record, index) => {
+          console.log(`  ${index + 1}. Consignment: ${record.consignmentId}, Type: ${record.test.riderRequestEarningType}`);
+          console.log(`     Earning:`, record.test.riderRequestEarning);
+        });
+      }
+    } catch (allRiderRequestError) {
+      console.error('❌ All RiderRequest earning test failed:', allRiderRequestError.message);
+    }
+    
+    // Test to find the specific record causing the error
+    try {
+      console.log('🔍 Testing to find the specific problematic record...');
+      const problematicRecordTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { "riderRequest.earning": { $exists: true, $ne: [] } },
+              { "consignmentHistory.expectedEarning": { $exists: true, $ne: [] } },
+              { "carryInfo.earning": { $exists: true, $ne: [] } }
+            ]
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            earning: 1,
+            "test.riderRequestEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.consignmentHistoryEarning": { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+            "test.carryInfoEarning": { $arrayElemAt: ["$carryInfo.earning", 0] },
+            "test.riderRequestType": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.consignmentHistoryType": { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+            "test.carryInfoType": { $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+          }
+        },
+        { $limit: 5 }
+      ]);
+      console.log('✅ Problematic record test completed');
+      console.log('📊 Sample records with earning data:');
+      problematicRecordTest.forEach((record, index) => {
+        console.log(`  ${index + 1}. Consignment: ${record.consignmentId}`);
+        console.log(`     RiderRequest: ${record.test.riderRequestType} -`, record.test.riderRequestEarning);
+        console.log(`     ConsignmentHistory: ${record.test.consignmentHistoryType} -`, record.test.consignmentHistoryEarning);
+        console.log(`     CarryInfo: ${record.test.carryInfoType} -`, record.test.carryInfoEarning);
+      });
+    } catch (problematicRecordError) {
+      console.error('❌ Problematic record test failed:', problematicRecordError.message);
+    }
+    
+    // Test to find the specific record with the error _id
+    try {
+      console.log('🔍 Testing to find the specific record with error _id...');
+      const specificRecordTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        {
+          $match: {
+            "riderRequest.earning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            earning: 1,
+            "test.riderRequestEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.riderRequestType": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.riderRequestId": { $arrayElemAt: ["$riderRequest.earning._id", 0] }
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { "test.riderRequestId": new ObjectId("689045ac7334c2df1f05624a") },
+              { "test.riderRequestEarning.senderTotalPay": 696.24 },
+              { "test.riderRequestEarning.totalFare": 468.2 }
+            ]
+          }
+        }
+      ]);
+      console.log('✅ Specific record test completed');
+      console.log('📊 Found records matching error criteria:', specificRecordTest.length);
+      if (specificRecordTest.length > 0) {
+        console.log('📊 Matching record:', specificRecordTest[0]);
+      }
+    } catch (specificRecordError) {
+      console.error('❌ Specific record test failed:', specificRecordError.message);
+    }
+    
+    // Test the type checking logic itself
+    try {
+      console.log('🔍 Testing the type checking logic...');
+      const typeCheckTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $match: {
+            "riderRequest.earning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.originalEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.typeCheckedEarning": {
+              $cond: {
+                if: { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+                then: { $arrayElemAt: ["$riderRequest.earning.senderTotalPay", 0] },
+                else: { $arrayElemAt: ["$riderRequest.earning", 0] }
+              }
+            },
+            "test.typeCheckedEarningType": {
+              $type: {
+                $cond: {
+                  if: { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+                  then: { $arrayElemAt: ["$riderRequest.earning.senderTotalPay", 0] },
+                  else: { $arrayElemAt: ["$riderRequest.earning", 0] }
+                }
+              }
+            }
+          }
+        },
+        { $limit: 3 }
+      ]);
+      console.log('✅ Type checking logic test completed');
+      console.log('📊 Type checking results:');
+      typeCheckTest.forEach((record, index) => {
+        console.log(`  ${index + 1}. Consignment: ${record.consignmentId}`);
+        console.log(`     Original: ${typeof record.test.originalEarning} -`, record.test.originalEarning);
+        console.log(`     TypeChecked: ${record.test.typeCheckedEarningType} -`, record.test.typeCheckedEarning);
+      });
+    } catch (typeCheckError) {
+      console.error('❌ Type checking logic test failed:', typeCheckError.message);
+    }
+    
+    // Test to find ALL records with object-type riderRequest.earning (without ObjectId)
+    try {
+      console.log('🔍 Testing to find ALL object-type riderRequest records (comprehensive)...');
+      const comprehensiveTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $match: {
+            "riderRequest.earning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.riderRequestEarning": { $arrayElemAt: ["$riderRequest.earning", 0] },
+            "test.riderRequestType": { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+            "test.isObject": { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+            "test.senderTotalPay": { $arrayElemAt: ["$riderRequest.earning.senderTotalPay", 0] },
+            "test.totalFare": { $arrayElemAt: ["$riderRequest.earning.totalFare", 0] }
+          }
+        },
+        {
+          $match: {
+            "test.isObject": true
+          }
+        },
+        {
+          $sort: { consignmentId: 1 }
+        }
+      ]);
+      console.log('✅ Comprehensive test completed');
+      console.log('📊 Total object-type riderRequest records found:', comprehensiveTest.length);
+      console.log('📊 All object-type records:');
+      comprehensiveTest.forEach((record, index) => {
+        console.log(`  ${index + 1}. Consignment: ${record.consignmentId}`);
+        console.log(`     Type: ${record.test.riderRequestType}`);
+        console.log(`     senderTotalPay: ${record.test.senderTotalPay}`);
+        console.log(`     totalFare: ${record.test.totalFare}`);
+        console.log(`     Full earning:`, record.test.riderRequestEarning);
+      });
+    } catch (comprehensiveError) {
+      console.error('❌ Comprehensive test failed:', comprehensiveError.message);
+    }
+    
+    // Test to check if there are any object-type consignmentHistory.expectedEarning records
+    try {
+      console.log('🔍 Testing for object-type consignmentHistory.expectedEarning records...');
+      const consignmentHistoryTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $match: {
+            "consignmentHistory.expectedEarning": { $exists: true, $ne: [] }
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            "test.expectedEarning": { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+            "test.expectedEarningType": { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+            "test.isObject": { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] },
+            "test.senderTotalPay": { $arrayElemAt: ["$consignmentHistory.expectedEarning.senderTotalPay", 0] },
+            "test.totalFare": { $arrayElemAt: ["$consignmentHistory.expectedEarning.totalFare", 0] }
+          }
+        },
+        {
+          $match: {
+            "test.isObject": true
+          }
+        },
+        {
+          $sort: { consignmentId: 1 }
+        }
+      ]);
+      console.log('✅ ConsignmentHistory test completed');
+      console.log('📊 Total object-type consignmentHistory records found:', consignmentHistoryTest.length);
+      if (consignmentHistoryTest.length > 0) {
+        console.log('📊 Object-type consignmentHistory records:');
+        consignmentHistoryTest.forEach((record, index) => {
+          console.log(`  ${index + 1}. Consignment: ${record.consignmentId}`);
+          console.log(`     Type: ${record.test.expectedEarningType}`);
+          console.log(`     senderTotalPay: ${record.test.senderTotalPay}`);
+          console.log(`     totalFare: ${record.test.totalFare}`);
+          console.log(`     Full expectedEarning:`, record.test.expectedEarning);
+        });
+      }
+    } catch (consignmentHistoryError) {
+      console.error('❌ ConsignmentHistory test failed:', consignmentHistoryError.message);
+    }
+    
+    // Test to check if the issue is with a different field or calculation
+    try {
+      console.log('🔍 Testing to isolate the exact problematic field...');
+      const isolateTest = await Consignment.aggregate([
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { "riderRequest.earning": { $exists: true, $ne: [] } },
+              { "consignmentHistory.expectedEarning": { $exists: true, $ne: [] } },
+              { "carryInfo.earning": { $exists: true, $ne: [] } }
+            ]
+          }
+        },
+        {
+          $project: {
+            consignmentId: 1,
+            earning: 1,
+            "test.allEarningFields": {
+              riderRequest: { $arrayElemAt: ["$riderRequest.earning", 0] },
+              consignmentHistory: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] },
+              carryInfo: { $arrayElemAt: ["$carryInfo.earning", 0] },
+              consignment: "$earning"
+            },
+            "test.allEarningTypes": {
+              riderRequest: { $type: { $arrayElemAt: ["$riderRequest.earning", 0] } },
+              consignmentHistory: { $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+              carryInfo: { $type: { $arrayElemAt: ["$carryInfo.earning", 0] } },
+              consignment: { $type: "$earning" }
+            }
+          }
+        },
+        {
+          $match: {
+            $or: [
+              { "test.allEarningTypes.riderRequest": "object" },
+              { "test.allEarningTypes.consignmentHistory": "object" },
+              { "test.allEarningTypes.carryInfo": "object" }
+            ]
+          }
+        },
+        { $limit: 10 }
+      ]);
+      console.log('✅ Isolate test completed');
+      console.log('📊 Records with any object-type earning fields:', isolateTest.length);
+      if (isolateTest.length > 0) {
+        console.log('📊 Sample records with object-type fields:');
+        isolateTest.forEach((record, index) => {
+          console.log(`  ${index + 1}. Consignment: ${record.consignmentId}`);
+          console.log(`     Types:`, record.test.allEarningTypes);
+          console.log(`     Values:`, record.test.allEarningFields);
+        });
+      }
+    } catch (isolateError) {
+      console.error('❌ Isolate test failed:', isolateError.message);
+    }
+      
+      const report = await Consignment.aggregate([
+        // Join with ConsignmentToCarry (only if exists)
+        {
+          $lookup: {
+            from: "consignmenttocarries",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "carryInfo"
+          }
+        },
+
+        // Join with TravelDetails (only if carryInfo exists)
+        {
+          $lookup: {
+            from: "traveldetails",
+            let: { travelId: { $ifNull: [{ $arrayElemAt: ["$carryInfo.travelId", 0] }, null] } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$travelId", "$$travelId"] }
+                }
+              }
+            ],
+            as: "travelDetails"
+          }
+        },
+
+        // Join with ConsignmentRequestHistory
+        {
+          $lookup: {
+            from: "consignmentrequesthistories",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "consignmentHistory"
+          }
+        },
+
+        // Join with Rider Request
+        {
+          $lookup: {
+            from: "rider_requests",
+            localField: "consignmentId",
+            foreignField: "consignmentId",
+            as: "riderRequest"
+          }
+        },
+
+        // Project fields for Excel report with proper fallbacks
+        {
+          $project: {
+            _id: 0,
+            "Consignment ID": "$consignmentId",
+            "Consignment Status": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.status", 0] },
+                "$status"
+              ]
+            },
+            "Sender ID": "$_id",
+            "Sender Name": "$username",
+            "Sender Mobile No": "$phoneNumber",
+            "Sender Address": "$startinglocation",
+            "Total Amount Sender": {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] },
+                    then: {
+                  $let: {
+                    vars: { earning: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+                    in: "$$earning.senderTotalPay"
+                      }
+                    },
+                    else: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] }
+                  }
+                },
+                {
+                  $ifNull: [
+                    {
+                      $cond: {
+                        if: { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+                        then: { $arrayElemAt: ["$riderRequest.earning.senderTotalPay", 0] },
+                        else: { $arrayElemAt: ["$riderRequest.earning", 0] }
+                      }
+                    },
+                    {
+                      $ifNull: [
+                        {
+                          $cond: {
+                            if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                            then: 0, // For now, use 0 for string values to avoid parsing issues
+                            else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                          }
+                        },
+                        "$earning"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "Payment Status": {
+              $cond: {
+                if: { 
+                  $in: [
+                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                    ["Delivered", "Completed", "Collected"]
+                  ]
+                },
+                then: "Paid",
+                else: "Pending"
+              }
+            },
+            "Traveler Id": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.travelId", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Acceptance Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.createdAt", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Name": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.username", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Mobile No": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
+                "N/A"
+              ]
+            },
+            "Traveler Address": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.Leavinglocation", 0] },
+                "N/A"
+              ]
+            },
+            "Amount to be paid to Traveler": {
+              $ifNull: [
+                {
+                  $cond: {
+                    if: { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+                    then: { $arrayElemAt: ["$riderRequest.earning.totalFare", 0] },
+                    else: { $arrayElemAt: ["$riderRequest.earning", 0] }
+                  }
+                },
+                {
+                  $ifNull: [
+                    {
+                      $cond: {
+                        if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                        then: 0, // For now, use 0 for string values to avoid parsing issues
+                        else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                      }
+                    },
+                    {
+                      $multiply: [
+                        {
+                          $toDouble: {
+                            $ifNull: [
+                              {
+                                $cond: {
+                                  if: { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] },
+                                  then: {
+                                    $let: {
+                                      vars: { earning: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+                                      in: "$$earning.senderTotalPay"
+                                    }
+                                  },
+                                  else: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] }
+                                }
+                              },
+                              0
+                            ]
+                          }
+                        },
+                        0.7
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "Traveler Payment Status": {
+              $cond: {
+                if: { 
+                  $in: [
+                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                    ["Delivered", "Completed"]
+                  ]
+                },
+                then: "Paid",
+                else: {
+                  $cond: {
+                    if: { 
+                      $eq: [
+                        { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
+                        "In Transit"
+                      ]
+                    },
+                    then: "Partial",
+                    else: "Pending"
+                  }
+                }
+              }
+            },
+            "Travel Mode": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.travelMode", 0] },
+                "N/A"
+              ]
+            },
+            "Travel Start Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedStartTime", 0] },
+                "N/A"
+              ]
+            },
+            "Travel End Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedEndTime", 0] },
+                "N/A"
+              ]
+            },
+            "Recipient Name": "$recievername",
+            "Recipient Address": "$goinglocation",
+            "Recipient Phone no": "$recieverphone",
+            "Received Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.dateandtimeofdelivery", 0] },
+                "$dateOfSending"
+              ]
+            },
+            "T&E Amount": { $literal: TE },
+            "Tax Component": {
+              $multiply: [
+                {
+                  $toDouble: {
+                  $ifNull: [
+                    {
+                        $cond: {
+                          if: { $eq: [{ $type: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } }, "object"] },
+                          then: {
+                      $let: {
+                        vars: { earning: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] } },
+                              in: "$$earning.totalFare"
+                            }
+                          },
+                          else: { $arrayElemAt: ["$consignmentHistory.expectedEarning", 0] }
+                      }
+                    },
+                    {
+                      $ifNull: [
+                          {
+                            $cond: {
+                              if: { $eq: [{ $type: { $arrayElemAt: ["$riderRequest.earning", 0] } }, "object"] },
+                              then: { $arrayElemAt: ["$riderRequest.earning.totalFare", 0] },
+                              else: { $arrayElemAt: ["$riderRequest.earning", 0] }
+                            }
+                          },
+                        {
+                          $ifNull: [
+                              {
+                                $cond: {
+                                  if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
+                                  then: 0, // For now, use 0 for string values to avoid parsing issues
+                                  else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
+                                }
+                              },
+                            0
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                  }
+                },
+                margin
+              ]
+            },
+            "Vehicle Type/Travel Number": {
+              $cond: {
+                if: { 
+                  $eq: [
+                    { $ifNull: [{ $arrayElemAt: ["$travelDetails.travelMode", 0] }, "N/A"] },
+                    "roadways"
+                  ]
+                },
+                then: {
+                  $ifNull: [
+                    { $arrayElemAt: ["$travelDetails.vehicleType", 0] },
+                    "N/A"
+                  ]
+                },
+                else: {
+                  $ifNull: [
+                    { $arrayElemAt: ["$travelDetails.travelNumber", 0] },
+                    { $arrayElemAt: ["$travelDetails.travelId", 0] },
+                    "N/A"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        
+        // Add pagination
+        { $skip: skip },
+        { $limit: limit }
+      ]);
+
+      // Get total count for pagination
+      const totalCount = await Consignment.countDocuments();
+
+      console.log(`✅ Aggregation report generated with ${report.length} records (page ${page})`);
+      res.status(200).json({
+        data: report,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalCount / limit),
+          totalRecords: totalCount,
+          recordsPerPage: limit,
+          hasNextPage: page < Math.ceil(totalCount / limit),
+          hasPreviousPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching consignment consolidated report:', error);
       res.status(500).json({ 
         error: 'Internal server error', 
         message: error.message,

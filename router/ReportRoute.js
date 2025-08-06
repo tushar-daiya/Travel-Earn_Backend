@@ -11,6 +11,9 @@ router.get('/consignment-history', ReportController.getSenderReport);
 // Get Consignment Consolidated Report
 router.get('/consignment-consolidated', ReportController.getConsignmentConsolidatedReport);
 
+// Get Consignment Consolidated Report with MongoDB Aggregation
+router.get('/consignment-consolidated-aggregation', ReportController.getConsignmentConsolidatedReportAggregation);
+
 // New Enhanced Endpoints
 // Get Business Intelligence Report
 router.get('/business-intelligence', ReportController.getBusinessIntelligenceReport);
