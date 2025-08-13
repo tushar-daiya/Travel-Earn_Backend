@@ -1,112 +1,111 @@
-const Traveldetails = require('../model/traveldetails'); // adjust path as needed
-const Admin = require('../model/Admin.model');
-const userprofiles = require('../model/Profile'); // Import the User model
-const jwt = require('jsonwebtoken');
+const Traveldetails = require("../model/traveldetails"); // adjust path as needed
+const Admin = require("../model/Admin.model");
+const userprofiles = require("../model/Profile"); // Import the User model
+const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
 // const nodemailer = require('nodemailer');
-const Consignment = require('../model/consignment.model');
-const Earning = require('../model/Earning');
-const Request = require('../model/consignment.model')
-const travelhistory = require('../model/travel.history')
-const mongoose = require('mongoose');
+const Consignment = require("../model/consignment.model");
+const Earning = require("../model/Earning");
+const Request = require("../model/consignment.model");
+const travelhistory = require("../model/travel.history");
+const getDateRange = require("../utils/getDateRange");
+const mongoose = require("mongoose");
 
 module.exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    
+
     const admin = await Admin.findOne({ email, isActive: true });
-    
+
     if (!admin) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
-    
-    
+
     const isMatch = await admin.comparePassword(password);
-    
+
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
-    
-    
+
     const token = jwt.sign(
       { id: admin._id, role: admin.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: "24h" }
     );
-    
+
     console.log(token);
 
     res.status(200).json({
-      message: 'Login successful',
+      message: "Login successful",
       token,
       admin: {
         id: admin._id,
         name: admin.name,
         email: admin.email,
         phoneNumber: admin.phoneNumber,
-        role: admin.role
-      }
+        role: admin.role,
+      },
     });
   } catch (error) {
-    console.error('Admin login error:', error);
-    res.status(500).json({ message: 'Error during login', error: error.message });
+    console.error("Admin login error:", error);
+    res
+      .status(500)
+      .json({ message: "Error during login", error: error.message });
   }
 };
 
-
 module.exports.createAdmin = async (req, res) => {
   try {
-    
-    if (!req.admin || req.admin.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Superadmin privileges required' });
+    if (!req.admin || req.admin.role !== "superadmin") {
+      return res
+        .status(403)
+        .json({ message: "Superadmin privileges required" });
     }
-    
+
     const { name, email, password, phoneNumber, role } = req.body;
-    
- 
+
     const existingAdmin = await Admin.findOne({ email });
-    
+
     if (existingAdmin) {
-      return res.status(400).json({ message: 'Email already in use' });
+      return res.status(400).json({ message: "Email already in use" });
     }
-    
- 
+
     const newAdmin = new Admin({
       name,
       email,
       password,
       phoneNumber,
-      role: role || 'support'
+      role: role || "support",
     });
-    
+
     await newAdmin.save();
-    
+
     res.status(201).json({
-      message: 'Admin account created successfully',
+      message: "Admin account created successfully",
       admin: {
         id: newAdmin._id,
         name: newAdmin.name,
         email: newAdmin.email,
         phoneNumber: newAdmin.phoneNumber,
-        role: newAdmin.role
-      }
+        role: newAdmin.role,
+      },
     });
   } catch (error) {
-    console.error('Error creating admin account:', error);
-    res.status(500).json({ message: 'Error creating admin account', error: error.message });
+    console.error("Error creating admin account:", error);
+    res
+      .status(500)
+      .json({ message: "Error creating admin account", error: error.message });
   }
 };
-
 
 module.exports.getAdminById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const admin = await Admin.findById(id).select('-password'); // exclude password for security
+    const admin = await Admin.findById(id).select("-password"); // exclude password for security
 
     if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
+      return res.status(404).json({ message: "Admin not found" });
     }
 
     res.status(200).json({
@@ -114,11 +113,13 @@ module.exports.getAdminById = async (req, res) => {
       name: admin.name,
       email: admin.email,
       phoneNumber: admin.phoneNumber,
-      role: admin.role
+      role: admin.role,
     });
   } catch (error) {
-    console.error('Error fetching admin:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("Error fetching admin:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -128,31 +129,40 @@ module.exports.deleteAdminById = async (req, res) => {
     const targetAdminId = req.params.id;
 
     // Check if the requester is a superadmin
-    if (!requestingAdmin || requestingAdmin.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Only superadmin can delete an admin' });
+    if (!requestingAdmin || requestingAdmin.role !== "superadmin") {
+      return res
+        .status(403)
+        .json({ message: "Only superadmin can delete an admin" });
     }
 
     // Prevent deletion if target ID is not provided
     if (!targetAdminId) {
-      return res.status(400).json({ message: 'Admin ID is required' });
+      return res.status(400).json({ message: "Admin ID is required" });
     }
 
     // Prevent self-deletion
-    if (requestingAdmin && requestingAdmin._id && requestingAdmin._id.toString() === targetAdminId.toString()) {
-      return res.status(400).json({ message: 'Superadmin cannot delete themselves' });
+    if (
+      requestingAdmin &&
+      requestingAdmin._id &&
+      requestingAdmin._id.toString() === targetAdminId.toString()
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Superadmin cannot delete themselves" });
     }
-    
 
     const deletedAdmin = await Admin.findByIdAndDelete(targetAdminId);
 
     if (!deletedAdmin) {
-      return res.status(404).json({ message: 'Admin not found' });
+      return res.status(404).json({ message: "Admin not found" });
     }
 
-    res.status(200).json({ message: 'Admin deleted successfully' });
+    res.status(200).json({ message: "Admin deleted successfully" });
   } catch (error) {
-    console.error('Error deleting admin:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    console.error("Error deleting admin:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 };
 
@@ -182,7 +192,10 @@ module.exports.updateAdminProfile = async (req, res) => {
     // Save changes
     await existingAdmin.save();
 
-    res.status(200).json({ message: "Admin profile updated successfully", admin: existingAdmin });
+    res.status(200).json({
+      message: "Admin profile updated successfully",
+      admin: existingAdmin,
+    });
   } catch (error) {
     console.error("Error updating admin:", error);
     res.status(500).json({ message: "Server error" });
@@ -236,15 +249,20 @@ module.exports.getDahsboardStats = async (req, res) => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Total stats
-    const [totalRequests, totalAccepted, totalCancelled, totalDelivered, totalTravel] = await Promise.all([
+    const [
+      totalRequests,
+      totalAccepted,
+      totalCancelled,
+      totalDelivered,
+      totalTravel,
+    ] = await Promise.all([
       Consignment.countDocuments(),
       Consignment.countDocuments({ status: "Accepted" }),
       Consignment.countDocuments({ status: "Rejected" }),
       Consignment.countDocuments({ status: "Completed" }),
       Traveldetails.countDocuments(),
     ]);
-    
-    
+
     // Daily stats
     const [dailyConsignments, dailyTravels] = await Promise.all([
       Consignment.aggregate([
@@ -253,13 +271,19 @@ module.exports.getDahsboardStats = async (req, res) => {
           $group: {
             _id: null,
             totalRequests: { $sum: 1 },
-            accepted: { $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] } },
-            cancelled: { $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] } },
-            delivered: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } }
-          }
-        }
+            accepted: {
+              $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] },
+            },
+            cancelled: {
+              $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] },
+            },
+            delivered: {
+              $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] },
+            },
+          },
+        },
       ]),
-      Traveldetails.countDocuments({ createdAt: { $gte: startOfDay } })
+      Traveldetails.countDocuments({ createdAt: { $gte: startOfDay } }),
     ]);
 
     // Monthly stats
@@ -270,13 +294,19 @@ module.exports.getDahsboardStats = async (req, res) => {
           $group: {
             _id: null,
             totalRequests: { $sum: 1 },
-            accepted: { $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] } },
-            cancelled: { $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] } },
-            delivered: { $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] } }
-          }
-        }
+            accepted: {
+              $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] },
+            },
+            cancelled: {
+              $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] },
+            },
+            delivered: {
+              $sum: { $cond: [{ $eq: ["$status", "Completed"] }, 1, 0] },
+            },
+          },
+        },
       ]),
-      Traveldetails.countDocuments({ createdAt: { $gte: startOfMonth } })
+      Traveldetails.countDocuments({ createdAt: { $gte: startOfMonth } }),
     ]);
 
     res.status(200).json({
@@ -293,7 +323,7 @@ module.exports.getDahsboardStats = async (req, res) => {
         cancelled: dailyConsignments[0]?.cancelled || 0,
         delivered: dailyConsignments[0]?.delivered || 0,
         totalConsignments: dailyConsignments[0]?.totalRequests || 0,
-        totalTravel: dailyTravels
+        totalTravel: dailyTravels,
       },
 
       monthly: {
@@ -302,8 +332,8 @@ module.exports.getDahsboardStats = async (req, res) => {
         cancelled: monthlyConsignments[0]?.cancelled || 0,
         delivered: monthlyConsignments[0]?.delivered || 0,
         totalConsignments: monthlyConsignments[0]?.totalRequests || 0,
-        totalTravel: monthlyTravels
-      }
+        totalTravel: monthlyTravels,
+      },
     });
   } catch (error) {
     console.error("Stats fetch error:", error);
@@ -323,78 +353,85 @@ module.exports.getAllTravelSummary = async (req, res) => {
 
     // Apply search filter on travelId if present
     if (search) {
-      filter.travelId = { $regex: search, $options: 'i' };
+      filter.travelId = { $regex: search, $options: "i" };
     }
 
     // Apply driver name filter if present
     if (driverName) {
-      filter.username = { $regex: driverName, $options: 'i' };
+      filter.username = { $regex: driverName, $options: "i" };
     }
 
     // Apply date filter if present
     if (date) {
       const start = new Date(date);
       const end = new Date(date);
-      end.setHours(23, 59, 59, 999);  // Set to end of the day
+      end.setHours(23, 59, 59, 999); // Set to end of the day
       filter.travelDate = { $gte: start, $lte: end };
     }
 
     // Query the database to fetch travel data with the applied filters
     const travels = await Traveldetails.find(filter)
-      .select("travelId username duration expectedearning payableAmount status Leavinglocation Goinglocation distance travelDate")
+      .select(
+        "travelId username duration expectedearning payableAmount status Leavinglocation Goinglocation distance travelDate"
+      )
       .skip(skip)
       .limit(limit)
-      .sort({ travelDate: -1 });  // Sorting by travel date in descending order
+      .sort({ travelDate: -1 }); // Sorting by travel date in descending order
 
     // Get total count of travels matching the filter
     const total = await Traveldetails.countDocuments(filter);
 
     // Get count of completed travels (for summary)
-    const totalCompleted = await Traveldetails.countDocuments({ status: "Completed" });
+    const totalCompleted = await Traveldetails.countDocuments({
+      status: "Completed",
+    });
 
     // Return the result along with pagination and summary
     res.status(200).json({
       success: true,
-      data: travels,  // List of travels
+      data: travels, // List of travels
       pagination: {
-        total,  // Total number of travels matching filter
-        page,  // Current page number
-        limit,  // Items per page
-        totalPages: Math.ceil(total / limit),  // Total pages available based on pagination
+        total, // Total number of travels matching filter
+        page, // Current page number
+        limit, // Items per page
+        totalPages: Math.ceil(total / limit), // Total pages available based on pagination
       },
       totals: {
-        completed: totalCompleted,  // Total completed travels for summary
+        completed: totalCompleted, // Total completed travels for summary
       },
     });
   } catch (error) {
     console.error("Error fetching travel summaries:", error.message);
-    res.status(500).json({ success: false, message: "Server Error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server Error", error: error.message });
   }
 };
 
-
 module.exports.getAllAdmins = async (req, res) => {
-  const search = req.query.search || "";  // Get search query from the request
+  const search = req.query.search || ""; // Get search query from the request
   const searchRegex = new RegExp(search, "i"); // Case-insensitive regex search
 
   try {
     // Build the query dynamically based on the search input
-    const query = search ? {
-      $or: [
-        { firstName: searchRegex }, 
-        { lastName: searchRegex },    
-        { email: searchRegex },     
-        { phoneNumber: searchRegex } 
-      ]
-    } : {};  // If no search term, return all admins
+    const query = search
+      ? {
+          $or: [
+            { firstName: searchRegex },
+            { lastName: searchRegex },
+            { email: searchRegex },
+            { phoneNumber: searchRegex },
+          ],
+        }
+      : {}; // If no search term, return all admins
 
     // Find admins with the dynamic query and exclude the password field
-    const admins = await Admin.find(query, '-password'); // Exclude the password field
+    const admins = await Admin.find(query, "-password"); // Exclude the password field
 
     res.status(200).json({ success: true, admins });
   } catch (error) {
-    console.error('Error fetching admins:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching admins:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -444,66 +481,68 @@ module.exports.getTotalUsers = async (req, res) => {
   try {
     const totalUsers = await userprofiles.countDocuments({});
     res.status(200).json({
-      message: 'Total user profiles fetched successfully.',
-      total: totalUsers
+      message: "Total user profiles fetched successfully.",
+      total: totalUsers,
     });
   } catch (err) {
-    console.error('Error fetching total user profiles:', err);
-    res.status(500).json({ message: 'Error fetching total user profiles.' });
+    console.error("Error fetching total user profiles:", err);
+    res.status(500).json({ message: "Error fetching total user profiles." });
   }
 };
 
 module.exports.getTotalEarnings = async (req, res) => {
-        try {
-          const result = await Earning.aggregate([
-            { $unwind: "$transactions" },
-            {
-              $match: {
-                "transactions.status": { $regex: /^completed$/i }
-              }
+  try {
+    const result = await Earning.aggregate([
+      { $unwind: "$transactions" },
+      {
+        $match: {
+          "transactions.status": { $regex: /^completed$/i },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarnings: {
+            $sum: {
+              $toDouble: "$transactions.amount",
             },
-            {
-              $group: {
-                _id: null,
-                totalEarnings: {
-                  $sum: {
-                    $toDouble: "$transactions.amount"
-                  }
+          },
+          transactions: {
+            $push: {
+              date: {
+                $dateToString: {
+                  format: "%Y-%m-%d",
+                  date: "$transactions.timestamp",
                 },
-                transactions: {
-                  $push: {
-                    date: {
-                      $dateToString: { format: "%Y-%m-%d", date: "$transactions.timestamp" }
-                    },
-                    amount: { $toDouble: "$transactions.amount" },
-                    paymentId: "$transactions.paymentId",
-                    title: "$transactions.title",
-                    travelId: "$transactions.travelId",
-                    status: "$transactions.status",
-                    method: "$transactions.paymentMethod"
-                  }
-                }
-              }
-            }
-          ]);
+              },
+              amount: { $toDouble: "$transactions.amount" },
+              paymentId: "$transactions.paymentId",
+              title: "$transactions.title",
+              travelId: "$transactions.travelId",
+              status: "$transactions.status",
+              method: "$transactions.paymentMethod",
+            },
+          },
+        },
+      },
+    ]);
 
-          const response = result[0] || { totalEarnings: 0, transactions: [] };
-      
-          res.status(200).json({
-            status: "success",
-            totalEarnings: response.totalEarnings,
-            data: response.transactions
-          });
-      
-        } catch (error) {
-          console.error("Error fetching total earnings:", error);
-          res.status(500).json({
-            status: "error",
-            message: "Internal server error",
-            error: error.message
-          });
-        }
-      };
+    const response = result[0] || { totalEarnings: 0, transactions: [] };
+
+    res.status(200).json({
+      status: "success",
+      totalEarnings: response.totalEarnings,
+      data: response.transactions,
+    });
+  } catch (error) {
+    console.error("Error fetching total earnings:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
 
 module.exports.getTransactionHistory = async (req, res) => {
   try {
@@ -512,17 +551,20 @@ module.exports.getTransactionHistory = async (req, res) => {
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").toLowerCase();
 
-
     // Step 1: Fetch all earnings documents with transactions
-    const earningsDocs = await Earning.find({ "transactions.0": { $exists: true } });
+    const earningsDocs = await Earning.find({
+      "transactions.0": { $exists: true },
+    });
 
     const transactions = [];
 
     for (const doc of earningsDocs) {
       const user = await userprofiles.findOne({ phoneNumber: doc.phoneNumber });
-      const customerName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown";
-    
-      doc.transactions.forEach(txn => {
+      const customerName = user
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+        : "Unknown";
+
+      doc.transactions.forEach((txn) => {
         if (txn.status === "Completed") {
           const transaction = {
             customerName,
@@ -530,20 +572,23 @@ module.exports.getTransactionHistory = async (req, res) => {
             paymentMode: txn.paymentMethod,
             amount: txn.amount,
             title: txn.title,
-            date: txn.timestamp?.toISOString().split("T")[0]
+            date: txn.timestamp?.toISOString().split("T")[0],
           };
-    
+
           // Apply search filter
-          const matchesSearch = [transaction.customerName, transaction.transactionId, transaction.paymentMode, transaction.title]
-            .some(field => field?.toLowerCase().includes(search));
-    
+          const matchesSearch = [
+            transaction.customerName,
+            transaction.transactionId,
+            transaction.paymentMode,
+            transaction.title,
+          ].some((field) => field?.toLowerCase().includes(search));
+
           if (!search || matchesSearch) {
             transactions.push(transaction);
           }
         }
       });
     }
-      
 
     // Sort by date descending (optional)
     transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -557,21 +602,20 @@ module.exports.getTransactionHistory = async (req, res) => {
       total: transactions.length,
       page,
       limit,
-      data: paginatedTransactions
+      data: paginatedTransactions,
     });
   } catch (err) {
     console.error("Error fetching transaction history:", err.message);
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
-      error: err.message
+      error: err.message,
     });
   }
-}
-
+};
 
 module.exports.getUserTravelDetails = async (req, res) => {
- const page = parseInt(req.query.page) || 1;
+  const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
   const search = req.query.search || "";
@@ -589,10 +633,10 @@ module.exports.getUserTravelDetails = async (req, res) => {
             $replaceAll: {
               input: "$phoneNumber",
               find: " ",
-              replacement: ""
-            }
-          }
-        }
+              replacement: "",
+            },
+          },
+        },
       },
       {
         $lookup: {
@@ -605,19 +649,19 @@ module.exports.getUserTravelDetails = async (req, res) => {
                   $replaceAll: {
                     input: "$phoneNumber",
                     find: " ",
-                    replacement: ""
-                  }
-                }
-              }
+                    replacement: "",
+                  },
+                },
+              },
             },
             {
               $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] }
-              }
-            }
+                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
+              },
+            },
           ],
-          as: "user"
-        }
+          as: "user",
+        },
       },
       { $unwind: "$user" },
     ];
@@ -634,13 +678,15 @@ module.exports.getUserTravelDetails = async (req, res) => {
             {
               $expr: {
                 $regexMatch: {
-                  input: { $concat: ["$user.firstName", " ", "$user.lastName"] },
+                  input: {
+                    $concat: ["$user.firstName", " ", "$user.lastName"],
+                  },
                   regex: searchRegex,
                 },
               },
             },
-          ]
-        }
+          ],
+        },
       });
     }
 
@@ -651,8 +697,8 @@ module.exports.getUserTravelDetails = async (req, res) => {
           from: "traveldetails",
           localField: "transactions.travelId",
           foreignField: "travelId",
-          as: "travel"
-        }
+          as: "travel",
+        },
       },
       { $unwind: { path: "$travel", preserveNullAndEmptyArrays: true } },
       {
@@ -667,27 +713,29 @@ module.exports.getUserTravelDetails = async (req, res) => {
                     input: {
                       $regexFind: {
                         input: "$travel.distance",
-                        regex: /[\d.]+/
-                      }
-                    }
-                  }
+                        regex: /[\d.]+/,
+                      },
+                    },
+                  },
                 },
               },
-              else: 0
-            }
+              else: 0,
+            },
           },
-          transactionAmount: { $toDouble: "$transactions.amount" }
-        }
+          transactionAmount: { $toDouble: "$transactions.amount" },
+        },
       },
       {
         $group: {
           _id: "$user._id",
-          username: { $first: { $concat: ["$user.firstName", " ", "$user.lastName"] } },
+          username: {
+            $first: { $concat: ["$user.firstName", " ", "$user.lastName"] },
+          },
           email: { $first: "$user.email" },
           phoneNumber: { $first: "$user.phoneNumber" },
           totalEarnings: { $sum: "$transactionAmount" },
-          totalDistance: { $sum: "$distanceNumber" }
-        }
+          totalDistance: { $sum: "$distanceNumber" },
+        },
       },
       {
         $project: {
@@ -696,8 +744,8 @@ module.exports.getUserTravelDetails = async (req, res) => {
           email: 1,
           phoneNumber: 1,
           totalEarnings: 1,
-          totalDistance: 1
-        }
+          totalDistance: 1,
+        },
       },
       { $skip: skip },
       { $limit: limit }
@@ -715,10 +763,10 @@ module.exports.getUserTravelDetails = async (req, res) => {
             $replaceAll: {
               input: "$phoneNumber",
               find: " ",
-              replacement: ""
-            }
-          }
-        }
+              replacement: "",
+            },
+          },
+        },
       },
       {
         $lookup: {
@@ -731,47 +779,53 @@ module.exports.getUserTravelDetails = async (req, res) => {
                   $replaceAll: {
                     input: "$phoneNumber",
                     find: " ",
-                    replacement: ""
-                  }
-                }
-              }
-            },
-            {
-              $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] }
-              }
-            }
-          ],
-          as: "user"
-        }
-      },
-      { $unwind: "$user" },
-      ...search ? [{
-        $match: {
-          $or: [
-            { "user.firstName": searchRegex },
-            { "user.lastName": searchRegex },
-            { "user.email": searchRegex },
-            { "user.phoneNumber": searchRegex },
-            {
-              $expr: {
-                $regexMatch: {
-                  input: { $concat: ["$user.firstName", " ", "$user.lastName"] },
-                  regex: searchRegex,
+                    replacement: "",
+                  },
                 },
               },
             },
+            {
+              $match: {
+                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
+              },
+            },
+          ],
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      ...(search
+        ? [
+            {
+              $match: {
+                $or: [
+                  { "user.firstName": searchRegex },
+                  { "user.lastName": searchRegex },
+                  { "user.email": searchRegex },
+                  { "user.phoneNumber": searchRegex },
+                  {
+                    $expr: {
+                      $regexMatch: {
+                        input: {
+                          $concat: ["$user.firstName", " ", "$user.lastName"],
+                        },
+                        regex: searchRegex,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
           ]
-        }
-      }] : [],
+        : []),
       {
         $group: {
-          _id: "$user._id"
-        }
+          _id: "$user._id",
+        },
       },
       {
-        $count: "total"
-      }
+        $count: "total",
+      },
     ]);
 
     const totalCount = countAgg[0]?.total || 0;
@@ -781,91 +835,242 @@ module.exports.getUserTravelDetails = async (req, res) => {
       data: result,
       totalCount,
       totalPages: Math.ceil(totalCount / limit),
-      currentPage: page
+      currentPage: page,
     });
-
   } catch (error) {
     console.error("Error:", error.message);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
   }
 };
 
 // Fetch travel history for a specific user
 
-
 module.exports.getTravelHistory = async (req, res) => {
- try {
-     const { phoneNumber } = req.params;
-    
-     if (!phoneNumber) {
-       return res.status(400).json({ message: "Phone number is required" });
-     }
- 
-     // Fetch all travel history for the user
-     const travels = await travelhistory.find({ phoneNumber }).sort({ createdAt: -1 }).lean();
- 
- 
-     if (!travels.length) {
-       return res.status(404).json({ message: "No travel history found" });
-     }
- 
-     // Iterate through travels and count consignments for each travelId
-     const travelsWithConsignments = await Promise.all(
-       travels.map(async (travel) => {
-         const consignmentCount = await Request.countDocuments({ travelId: travel.travelId });
-         return { ...travel, consignmentCount };
-       })
-     );
- 
-     res.status(200).json({ travels: travelsWithConsignments });
-   } catch (error) {
-     console.error("Error fetching travel history:", error);
-     res.status(500).json({ message: "Internal server error" });
-   }
+  try {
+    const { phoneNumber } = req.params;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Fetch all travel history for the user
+    const travels = await travelhistory
+      .find({ phoneNumber })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!travels.length) {
+      return res.status(404).json({ message: "No travel history found" });
+    }
+
+    // Iterate through travels and count consignments for each travelId
+    const travelsWithConsignments = await Promise.all(
+      travels.map(async (travel) => {
+        const consignmentCount = await Request.countDocuments({
+          travelId: travel.travelId,
+        });
+        return { ...travel, consignmentCount };
+      })
+    );
+
+    res.status(200).json({ travels: travelsWithConsignments });
+  } catch (error) {
+    console.error("Error fetching travel history:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-
-
-
-
 module.exports.deleteProfileByUserId = async (req, res) => {
-    try {
-      const { userId } = req.params;
-  
-      console.log(`Received UserId for deletion: ${userId}`);
-  
-      // Find the user first
-      const user = await userprofiles.findOne({
-        $or: [
-          { _id: userId },
-          { userId: userId }
-        ]
-      });
-  
-      if (!user) {
-        return res.status(404).json({ message: 'User profile not found' });
-      }
-  
-      const phoneNumber = user.phoneNumber;
-  
-      // Delete related earnings and travel records
-      const [earningsDeleteResult, travelDeleteResult] = await Promise.all([
-        Earning.deleteMany({ phoneNumber }), // If you switch to userId later, use { userId: user._id }
-        Traveldetails.deleteMany({ phoneNumber })
-      ]);
-  
-      // Delete user profile
-      await userprofiles.deleteOne({ _id: user._id });
-  
-      res.status(200).json({
-        message: 'Profile and related records deleted successfully',
-        deletedUserId: user._id,
-        earningsDeleted: earningsDeleteResult.deletedCount,
-        travelsDeleted: travelDeleteResult.deletedCount
-      });
-  
-    } catch (error) {
-      console.error('Error deleting user and related records:', error);
-      res.status(500).json({ error: 'Server Error', details: error.message });
+  try {
+    const { userId } = req.params;
+
+    console.log(`Received UserId for deletion: ${userId}`);
+
+    // Find the user first
+    const user = await userprofiles.findOne({
+      $or: [{ _id: userId }, { userId: userId }],
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User profile not found" });
     }
-  };
+
+    const phoneNumber = user.phoneNumber;
+
+    // Delete related earnings and travel records
+    const [earningsDeleteResult, travelDeleteResult] = await Promise.all([
+      Earning.deleteMany({ phoneNumber }), // If you switch to userId later, use { userId: user._id }
+      Traveldetails.deleteMany({ phoneNumber }),
+    ]);
+
+    // Delete user profile
+    await userprofiles.deleteOne({ _id: user._id });
+
+    res.status(200).json({
+      message: "Profile and related records deleted successfully",
+      deletedUserId: user._id,
+      earningsDeleted: earningsDeleteResult.deletedCount,
+      travelsDeleted: travelDeleteResult.deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting user and related records:", error);
+    res.status(500).json({ error: "Server Error", details: error.message });
+  }
+};
+
+module.exports.getSalesDashboard = async (req, res) => {
+  try {
+    const { fromDate, toDate, periodType } = req.query;
+    let startDate, endDate;
+
+    if (fromDate && toDate) {
+      startDate = new Date(fromDate);
+      endDate = new Date(toDate);
+    } else if (periodType) {
+      ({ startDate, endDate } = getDateRange(periodType));
+    }
+
+    const senderMatch = {};
+    const travellerMatch = {};
+
+    if (startDate && endDate) {
+      senderMatch.createdAt = { $gte: startDate, $lte: endDate };
+      travellerMatch.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    const senderAgg = await Consignment.aggregate([
+      { $match: senderMatch },
+      {
+        $group: {
+          _id: null,
+          totalNo: { $sum: 1 },
+          totalAmount: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning", false] },
+                { $toDouble: "$earning" },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const travellerAgg = await Traveldetails.aggregate([
+      { $match: travellerMatch },
+      {
+        $group: {
+          _id: null,
+          totalNo: { $sum: 1 },
+          totalAmount: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$expectedearning", false] },
+                { $toDouble: "$expectedearning" },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const senderData = senderAgg[0] || { totalNo: 0, totalAmount: 0 };
+    const travellerData = travellerAgg[0] || { totalNo: 0, totalAmount: 0 };
+
+    const dashboardData = [
+      {
+        totalNo: senderData.totalNo,
+        transactionType: "Sender",
+        amount: senderData.totalAmount.toFixed(2),
+      },
+      {
+        totalNo: travellerData.totalNo,
+        transactionType: "Traveller",
+        amount: travellerData.totalAmount.toFixed(2),
+      },
+    ];
+
+    res.json({
+      success: true,
+      filters: { startDate, endDate },
+      data: dashboardData,
+    });
+  } catch (error) {
+    console.error("Error fetching sales dashboard:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+module.exports.getRegionBreakdown = async (req, res) => {
+  try {
+    const { type, fromDate, toDate, periodType } = req.query;
+    let startDate, endDate;
+
+    if (fromDate && toDate) {
+      startDate = new Date(fromDate);
+      endDate = new Date(toDate);
+    } else if (periodType) {
+      ({ startDate, endDate } = getDateRange(periodType));
+    }
+
+    let match = {};
+    if (startDate && endDate) {
+      match.createdAt = { $gte: startDate, $lte: endDate };
+    }
+
+    let Model;
+    let regionField;
+    let amountField;
+
+    if (type === "Sender") {
+      Model = Consignment;
+      regionField = "$startinglocation";
+      amountField = "$earning";
+    } else if (type === "Traveller") {
+      Model = Traveldetails;
+      regionField = "$Leavinglocation";
+      amountField = "$expectedearning";
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid type" });
+    }
+
+    const breakdown = await Model.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { state: regionField, mode: "$travelMode" },
+          totalAmount: {
+            $sum: {
+              $cond: [
+                { $ifNull: [amountField, false] },
+                { $toDouble: amountField },
+                0,
+              ],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          stateWise: "$_id.state",
+          modeOfTravel: "$_id.mode",
+          totalAmount: 1,
+          _id: 0,
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      filters: { startDate, endDate, type },
+      data: breakdown,
+    });
+  } catch (error) {
+    console.error("Error fetching region breakdown:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
