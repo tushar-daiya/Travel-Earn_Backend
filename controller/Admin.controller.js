@@ -10,6 +10,7 @@ const Request = require("../model/consignment.model");
 const travelhistory = require("../model/travel.history");
 const getDateRange = require("../utils/getDateRange");
 const mongoose = require("mongoose");
+const ConsignmentToCarry = require("../model/ConsignmentToCarry.model");
 
 module.exports.login = async (req, res) => {
   try {
@@ -920,6 +921,7 @@ module.exports.deleteProfileByUserId = async (req, res) => {
   }
 };
 
+
 module.exports.getSalesDashboard = async (req, res) => {
   try {
     const { fromDate, toDate, periodType } = req.query;
@@ -932,78 +934,132 @@ module.exports.getSalesDashboard = async (req, res) => {
       ({ startDate, endDate } = getDateRange(periodType));
     }
 
-    const senderMatch = {};
-    const travellerMatch = {};
-
+    const match = { status: "Delivered" };
     if (startDate && endDate) {
-      senderMatch.createdAt = { $gte: startDate, $lte: endDate };
-      travellerMatch.createdAt = { $gte: startDate, $lte: endDate };
+      match.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    const senderAgg = await Consignment.aggregate([
-      { $match: senderMatch },
+    const agg = await ConsignmentToCarry.aggregate([
+      { $match: match },
+      {
+        $lookup: {
+          from: "traveldetails",
+          localField: "travelId",
+          foreignField: "travelId",
+          as: "travel",
+        },
+      },
+      { $unwind: "$travel" },
+
+      // Extract numeric values from the earning string using regex
+      {
+        $addFields: {
+          senderTotalNum: {
+            $let: {
+              vars: {
+                senderMatch: {
+                  $regexFind: {
+                    input: "$earning",
+                    regex: /senderTotalPay:\s*([0-9]+\.?[0-9]*)/
+                  }
+                }
+              },
+              in: {
+                $cond: {
+                  if: { $ne: ["$$senderMatch", null] },
+                  then: {
+                    $convert: {
+                      input: { $arrayElemAt: ["$$senderMatch.captures", 0] },
+                      to: "double",
+                      onError: 0,
+                      onNull: 0
+                    }
+                  },
+                  else: 0
+                }
+              }
+            }
+          },
+          travellerTotalNum: {
+            $let: {
+              vars: {
+                fareMatch: {
+                  $regexFind: {
+                    input: "$earning",
+                    regex: /totalFare:\s*([0-9]+\.?[0-9]*)/
+                  }
+                }
+              },
+              in: {
+                $cond: {
+                  if: { $ne: ["$$fareMatch", null] },
+                  then: {
+                    $convert: {
+                      input: { $arrayElemAt: ["$$fareMatch.captures", 0] },
+                      to: "double",
+                      onError: 0,
+                      onNull: 0
+                    }
+                  },
+                  else: 0
+                }
+              }
+            }
+          },
+        },
+      },
+
       {
         $group: {
-          _id: null,
-          totalNo: { $sum: 1 },
-          totalAmount: {
-            $sum: {
-              $cond: [
-                { $ifNull: ["$earning", false] },
-                { $toDouble: "$earning" },
-                0,
-              ],
-            },
+          _id: "$travel.travelMode",
+          senderTotal: { $sum: "$senderTotalNum" },
+          travellerTotal: { $sum: "$travellerTotalNum" },
+          senderCount: { 
+            $sum: { 
+              $cond: [{ $gt: ["$senderTotalNum", 0] }, 1, 0] 
+            } 
           },
+          travellerCount: { 
+            $sum: { 
+              $cond: [{ $gt: ["$travellerTotalNum", 0] }, 1, 0] 
+            } 
+          },
+          totalConsignments: { $sum: 1 },
         },
       },
     ]);
 
-    const travellerAgg = await Traveldetails.aggregate([
-      { $match: travellerMatch },
-      {
-        $group: {
-          _id: null,
-          totalNo: { $sum: 1 },
-          totalAmount: {
-            $sum: {
-              $cond: [
-                { $ifNull: ["$expectedearning", false] },
-                { $toDouble: "$expectedearning" },
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]);
-
-    const senderData = senderAgg[0] || { totalNo: 0, totalAmount: 0 };
-    const travellerData = travellerAgg[0] || { totalNo: 0, totalAmount: 0 };
-
-    const dashboardData = [
-      {
-        totalNo: senderData.totalNo,
-        transactionType: "Sender",
-        amount: senderData.totalAmount.toFixed(2),
-      },
-      {
-        totalNo: travellerData.totalNo,
-        transactionType: "Traveller",
-        amount: travellerData.totalAmount.toFixed(2),
-      },
-    ];
+    // Flatten into table-like rows
+    const tableData = [];
+    agg.forEach((row) => {
+      tableData.push({
+        type: "Sender",
+        mode: row._id,
+        amount: row.senderTotal.toFixed(2),
+        count: row.senderCount,
+        totalConsignments: row.totalConsignments
+      });
+      tableData.push({
+        type: "Traveller",
+        mode: row._id,
+        amount: row.travellerTotal.toFixed(2),
+        count: row.travellerCount,
+        totalConsignments: row.totalConsignments
+      });
+    });
 
     res.json({
       success: true,
       filters: { startDate, endDate },
-      data: dashboardData,
+      data: tableData,
     });
   } catch (error) {
     console.error("Error fetching sales dashboard:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+
 
 module.exports.getRegionBreakdown = async (req, res) => {
   try {
@@ -1017,51 +1073,122 @@ module.exports.getRegionBreakdown = async (req, res) => {
       ({ startDate, endDate } = getDateRange(periodType));
     }
 
-    let match = {};
+    let match = { status: "Delivered" }; // Only consider delivered consignments
     if (startDate && endDate) {
       match.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    let Model;
-    let regionField;
-    let amountField;
-
-    if (type === "Sender") {
-      Model = Consignment;
-      regionField = "$startinglocation";
-      amountField = "$earning";
-    } else if (type === "Traveller") {
-      Model = Traveldetails;
-      regionField = "$Leavinglocation";
-      amountField = "$expectedearning";
-    } else {
-      return res.status(400).json({ success: false, message: "Invalid type" });
+    if (!type || (type !== "Sender" && type !== "Traveller")) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid type. Must be 'Sender' or 'Traveller'" 
+      });
     }
 
-    const breakdown = await Model.aggregate([
+    const breakdown = await ConsignmentToCarry.aggregate([
       { $match: match },
+      
+      // Lookup travel details to get travelMode
       {
-        $group: {
-          _id: { state: regionField, mode: "$travelMode" },
-          totalAmount: {
-            $sum: {
-              $cond: [
-                { $ifNull: [amountField, false] },
-                { $toDouble: amountField },
-                0,
-              ],
-            },
-          },
+        $lookup: {
+          from: "traveldetails",
+          localField: "travelId",
+          foreignField: "travelId",
+          as: "travel",
         },
       },
+      { $unwind: "$travel" },
+
+      // Extract earning values from the earning string
+      {
+        $addFields: {
+          senderEarning: {
+            $let: {
+              vars: {
+                senderMatch: {
+                  $regexFind: {
+                    input: "$earning",
+                    regex: /senderTotalPay:\s*([0-9]+\.?[0-9]*)/
+                  }
+                }
+              },
+              in: {
+                $cond: {
+                  if: { $ne: ["$$senderMatch", null] },
+                  then: {
+                    $convert: {
+                      input: { $arrayElemAt: ["$$senderMatch.captures", 0] },
+                      to: "double",
+                      onError: 0,
+                      onNull: 0
+                    }
+                  },
+                  else: 0
+                }
+              }
+            }
+          },
+          travellerEarning: {
+            $let: {
+              vars: {
+                fareMatch: {
+                  $regexFind: {
+                    input: "$earning",
+                    regex: /totalFare:\s*([0-9]+\.?[0-9]*)/
+                  }
+                }
+              },
+              in: {
+                $cond: {
+                  if: { $ne: ["$$fareMatch", null] },
+                  then: {
+                    $convert: {
+                      input: { $arrayElemAt: ["$$fareMatch.captures", 0] },
+                      to: "double",
+                      onError: 0,
+                      onNull: 0
+                    }
+                  },
+                  else: 0
+                }
+              }
+            }
+          }
+        }
+      },
+
+      // Group by region (startinglocation) and travel mode
+      {
+        $group: {
+          _id: { 
+            state: "$startinglocation", 
+            mode: "$travel.travelMode" 
+          },
+          senderTotal: { $sum: "$senderEarning" },
+          travellerTotal: { $sum: "$travellerEarning" },
+          consignmentCount: { $sum: 1 }
+        },
+      },
+
+      // Project based on type requested
       {
         $project: {
           stateWise: "$_id.state",
           modeOfTravel: "$_id.mode",
-          totalAmount: 1,
+          totalAmount: {
+            $cond: {
+              if: { $eq: [type, "Sender"] },
+              then: "$senderTotal",
+              else: "$travellerTotal"
+            }
+          },
+          consignmentCount: 1,
           _id: 0,
         },
       },
+
+      // Sort by totalAmount descending
+      { $sort: { totalAmount: -1 } }
     ]);
 
     res.json({
