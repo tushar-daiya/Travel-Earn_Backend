@@ -938,7 +938,8 @@ module.exports.getSalesDashboard = async (req, res) => {
     if (startDate && endDate) {
       match.createdAt = { $gte: startDate, $lte: endDate };
     }
-
+    const cons= await ConsignmentToCarry.find();
+    console.log(cons)
     const agg = await ConsignmentToCarry.aggregate([
       { $match: match },
       {
@@ -951,83 +952,56 @@ module.exports.getSalesDashboard = async (req, res) => {
       },
       { $unwind: "$travel" },
 
-      // Extract numeric values from the earning string using regex
-      {
-        $addFields: {
-          senderTotalNum: {
-            $let: {
-              vars: {
-                senderMatch: {
-                  $regexFind: {
-                    input: "$earning",
-                    regex: /senderTotalPay:\s*([0-9]+\.?[0-9]*)/
-                  }
-                }
-              },
-              in: {
-                $cond: {
-                  if: { $ne: ["$$senderMatch", null] },
-                  then: {
-                    $convert: {
-                      input: { $arrayElemAt: ["$$senderMatch.captures", 0] },
-                      to: "double",
-                      onError: 0,
-                      onNull: 0
-                    }
-                  },
-                  else: 0
-                }
-              }
-            }
-          },
-          travellerTotalNum: {
-            $let: {
-              vars: {
-                fareMatch: {
-                  $regexFind: {
-                    input: "$earning",
-                    regex: /totalFare:\s*([0-9]+\.?[0-9]*)/
-                  }
-                }
-              },
-              in: {
-                $cond: {
-                  if: { $ne: ["$$fareMatch", null] },
-                  then: {
-                    $convert: {
-                      input: { $arrayElemAt: ["$$fareMatch.captures", 0] },
-                      to: "double",
-                      onError: 0,
-                      onNull: 0
-                    }
-                  },
-                  else: 0
-                }
-              }
-            }
-          },
-        },
-      },
-
       {
         $group: {
           _id: "$travel.travelMode",
-          senderTotal: { $sum: "$senderTotalNum" },
-          travellerTotal: { $sum: "$travellerTotalNum" },
+          senderTotal: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning.senderTotalPay", false] },
+                { $toDouble: "$earning.senderTotalPay" },
+                0,
+              ],
+            },
+          },
+          travellerTotal: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning.totalFare", false] },
+                { $toDouble: "$earning.totalFare" },
+                0,
+              ],
+            },
+          },
           senderCount: { 
             $sum: { 
-              $cond: [{ $gt: ["$senderTotalNum", 0] }, 1, 0] 
+              $cond: [
+                { $and: [
+                  { $ifNull: ["$earning.senderTotalPay", false] },
+                  { $gt: [{ $toDouble: "$earning.senderTotalPay" }, 0] }
+                ]}, 
+                1, 
+                0
+              ] 
             } 
           },
           travellerCount: { 
             $sum: { 
-              $cond: [{ $gt: ["$travellerTotalNum", 0] }, 1, 0] 
+              $cond: [
+                { $and: [
+                  { $ifNull: ["$earning.totalFare", false] },
+                  { $gt: [{ $toDouble: "$earning.totalFare" }, 0] }
+                ]}, 
+                1, 
+                0
+              ] 
             } 
           },
           totalConsignments: { $sum: 1 },
         },
       },
     ]);
+    console.log(agg)
 
     // Flatten into table-like rows
     const tableData = [];
@@ -1099,64 +1073,6 @@ module.exports.getRegionBreakdown = async (req, res) => {
       },
       { $unwind: "$travel" },
 
-      // Extract earning values from the earning string
-      {
-        $addFields: {
-          senderEarning: {
-            $let: {
-              vars: {
-                senderMatch: {
-                  $regexFind: {
-                    input: "$earning",
-                    regex: /senderTotalPay:\s*([0-9]+\.?[0-9]*)/
-                  }
-                }
-              },
-              in: {
-                $cond: {
-                  if: { $ne: ["$$senderMatch", null] },
-                  then: {
-                    $convert: {
-                      input: { $arrayElemAt: ["$$senderMatch.captures", 0] },
-                      to: "double",
-                      onError: 0,
-                      onNull: 0
-                    }
-                  },
-                  else: 0
-                }
-              }
-            }
-          },
-          travellerEarning: {
-            $let: {
-              vars: {
-                fareMatch: {
-                  $regexFind: {
-                    input: "$earning",
-                    regex: /totalFare:\s*([0-9]+\.?[0-9]*)/
-                  }
-                }
-              },
-              in: {
-                $cond: {
-                  if: { $ne: ["$$fareMatch", null] },
-                  then: {
-                    $convert: {
-                      input: { $arrayElemAt: ["$$fareMatch.captures", 0] },
-                      to: "double",
-                      onError: 0,
-                      onNull: 0
-                    }
-                  },
-                  else: 0
-                }
-              }
-            }
-          }
-        }
-      },
-
       // Group by region (startinglocation) and travel mode
       {
         $group: {
@@ -1164,8 +1080,24 @@ module.exports.getRegionBreakdown = async (req, res) => {
             state: "$startinglocation", 
             mode: "$travel.travelMode" 
           },
-          senderTotal: { $sum: "$senderEarning" },
-          travellerTotal: { $sum: "$travellerEarning" },
+          senderTotal: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning.senderTotalPay", false] },
+                { $toDouble: "$earning.senderTotalPay" },
+                0,
+              ],
+            },
+          },
+          travellerTotal: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning.totalFare", false] },
+                { $toDouble: "$earning.totalFare" },
+                0,
+              ],
+            },
+          },
           consignmentCount: { $sum: 1 }
         },
       },

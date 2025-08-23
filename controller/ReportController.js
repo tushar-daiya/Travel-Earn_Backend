@@ -48,401 +48,401 @@ class ReportController {
   }
 
   // Helper function to generate 10-digit phone number
-  static generatePhoneNumber() {
-    return Math.floor(1000000000 + Math.random() * 9000000000).toString();
-  }
+  // static generatePhoneNumber() {
+  //   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
+  // }
 
-  // Generate dummy user profiles
-  static generateDummyUsers() {
-    const users = [];
-    const names = [
-      'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis', 'David Wilson',
-      'Lisa Anderson', 'James Taylor', 'Jennifer Martinez', 'Robert Garcia', 'Amanda Rodriguez',
-      'William Lee', 'Michelle White', 'Christopher Hall', 'Jessica Allen', 'Daniel Young',
-      'Ashley King', 'Matthew Wright', 'Nicole Green', 'Joshua Baker', 'Stephanie Adams'
-    ];
-    const addresses = [
-      '123 Main Street, Mumbai, Maharashtra',
-      '456 Park Avenue, Delhi, Delhi',
-      '789 Lake Road, Bangalore, Karnataka',
-      '321 Hill Street, Chennai, Tamil Nadu',
-      '654 Ocean Drive, Kolkata, West Bengal',
-      '987 Mountain View, Hyderabad, Telangana',
-      '147 River Side, Pune, Maharashtra',
-      '258 Garden Lane, Ahmedabad, Gujarat',
-      '369 Sunset Boulevard, Jaipur, Rajasthan',
-      '741 Golden Gate, Lucknow, Uttar Pradesh'
-    ];
-    const vehicleTypes = ['Car', 'Bike', 'Van', 'Truck', 'Auto'];
-    const vehicleNumbers = ['MH01AB1234', 'DL02CD5678', 'KA03EF9012', 'TN04GH3456', 'WB05IJ7890'];
+  // // Generate dummy user profiles
+  // static generateDummyUsers() {
+  //   const users = [];
+  //   const names = [
+  //     'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis', 'David Wilson',
+  //     'Lisa Anderson', 'James Taylor', 'Jennifer Martinez', 'Robert Garcia', 'Amanda Rodriguez',
+  //     'William Lee', 'Michelle White', 'Christopher Hall', 'Jessica Allen', 'Daniel Young',
+  //     'Ashley King', 'Matthew Wright', 'Nicole Green', 'Joshua Baker', 'Stephanie Adams'
+  //   ];
+  //   const addresses = [
+  //     '123 Main Street, Mumbai, Maharashtra',
+  //     '456 Park Avenue, Delhi, Delhi',
+  //     '789 Lake Road, Bangalore, Karnataka',
+  //     '321 Hill Street, Chennai, Tamil Nadu',
+  //     '654 Ocean Drive, Kolkata, West Bengal',
+  //     '987 Mountain View, Hyderabad, Telangana',
+  //     '147 River Side, Pune, Maharashtra',
+  //     '258 Garden Lane, Ahmedabad, Gujarat',
+  //     '369 Sunset Boulevard, Jaipur, Rajasthan',
+  //     '741 Golden Gate, Lucknow, Uttar Pradesh'
+  //   ];
+  //   const vehicleTypes = ['Car', 'Bike', 'Van', 'Truck', 'Auto'];
+  //   const vehicleNumbers = ['MH01AB1234', 'DL02CD5678', 'KA03EF9012', 'TN04GH3456', 'WB05IJ7890'];
 
-    // Generate consistent phone numbers for better data mapping
-    const phoneNumbers = [];
-    for (let i = 0; i < 20; i++) {
-      phoneNumbers.push(ReportController.generatePhoneNumber());
-    }
+  //   // Generate consistent phone numbers for better data mapping
+  //   const phoneNumbers = [];
+  //   for (let i = 0; i < 20; i++) {
+  //     phoneNumbers.push(ReportController.generatePhoneNumber());
+  //   }
 
-    for (let i = 0; i < 20; i++) {
-      const [firstName, lastName] = names[i].split(' ');
-      const isTraveler = i < 10;
-      users.push({
-        _id: `user_${i + 1}`,
-        userId: `user_${i + 1}`,
-        firstName,
-        lastName,
-        phoneNumber: phoneNumbers[i], // Use consistent phone numbers
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-        role: isTraveler ? 'traveler' : 'sender',
-        currentLocation: {
-          coordinates: [Math.random() * 180 - 90, Math.random() * 360 - 180]
-        },
-        address: addresses[Math.floor(Math.random() * addresses.length)],
-        averageRating: (Math.random() * 5).toFixed(1),
-        totalrating: Math.floor(Math.random() * 100),
-        isVerified: Math.random() > 0.3,
-        profilePicture: `https://example.com/profile_${i + 1}.jpg`,
-        // Traveler specific fields
-        vehicleType: isTraveler ? vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)] : null,
-        vehicleNumber: isTraveler ? vehicleNumbers[Math.floor(Math.random() * vehicleTypes.length)] : null,
-        licenseNumber: isTraveler ? `DL${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-        experience: isTraveler ? Math.floor(Math.random() * 10) + 1 : null,
-        totalTrips: isTraveler ? Math.floor(Math.random() * 500) + 10 : null,
-        totalEarnings: isTraveler ? ReportController.formatAmount(Math.random() * 50000 + 5000) : null,
-        // Sender specific fields
-        businessName: !isTraveler ? `${firstName} ${lastName} Enterprises` : null,
-        businessType: !isTraveler ? ['Retail', 'Manufacturing', 'Services', 'E-commerce'][Math.floor(Math.random() * 4)] : null,
-        totalConsignments: !isTraveler ? Math.floor(Math.random() * 200) + 10 : null,
-        totalSpent: !isTraveler ? ReportController.formatAmount(Math.random() * 100000 + 10000) : null,
-        // Common fields
-        dateOfBirth: new Date(1980 + Math.floor(Math.random() * 30), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)),
-        gender: ['Male', 'Female', 'Other'][Math.floor(Math.random() * 3)],
-        emergencyContact: ReportController.generatePhoneNumber(),
-        emergencyContactName: names[Math.floor(Math.random() * names.length)],
-        createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
-        lastUpdated: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
-      });
-    }
-    return users;
-  }
+  //   for (let i = 0; i < 20; i++) {
+  //     const [firstName, lastName] = names[i].split(' ');
+  //     const isTraveler = i < 10;
+  //     users.push({
+  //       _id: `user_${i + 1}`,
+  //       userId: `user_${i + 1}`,
+  //       firstName,
+  //       lastName,
+  //       phoneNumber: phoneNumbers[i], // Use consistent phone numbers
+  //       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+  //       role: isTraveler ? 'traveler' : 'sender',
+  //       currentLocation: {
+  //         coordinates: [Math.random() * 180 - 90, Math.random() * 360 - 180]
+  //       },
+  //       address: addresses[Math.floor(Math.random() * addresses.length)],
+  //       averageRating: (Math.random() * 5).toFixed(1),
+  //       totalrating: Math.floor(Math.random() * 100),
+  //       isVerified: Math.random() > 0.3,
+  //       profilePicture: `https://example.com/profile_${i + 1}.jpg`,
+  //       // Traveler specific fields
+  //       vehicleType: isTraveler ? vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)] : null,
+  //       vehicleNumber: isTraveler ? vehicleNumbers[Math.floor(Math.random() * vehicleTypes.length)] : null,
+  //       licenseNumber: isTraveler ? `DL${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
+  //       experience: isTraveler ? Math.floor(Math.random() * 10) + 1 : null,
+  //       totalTrips: isTraveler ? Math.floor(Math.random() * 500) + 10 : null,
+  //       totalEarnings: isTraveler ? ReportController.formatAmount(Math.random() * 50000 + 5000) : null,
+  //       // Sender specific fields
+  //       businessName: !isTraveler ? `${firstName} ${lastName} Enterprises` : null,
+  //       businessType: !isTraveler ? ['Retail', 'Manufacturing', 'Services', 'E-commerce'][Math.floor(Math.random() * 4)] : null,
+  //       totalConsignments: !isTraveler ? Math.floor(Math.random() * 200) + 10 : null,
+  //       totalSpent: !isTraveler ? ReportController.formatAmount(Math.random() * 100000 + 10000) : null,
+  //       // Common fields
+  //       dateOfBirth: new Date(1980 + Math.floor(Math.random() * 30), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)),
+  //       gender: ['Male', 'Female', 'Other'][Math.floor(Math.random() * 3)],
+  //       emergencyContact: ReportController.generatePhoneNumber(),
+  //       emergencyContactName: names[Math.floor(Math.random() * names.length)],
+  //       createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
+  //       lastUpdated: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+  //     });
+  //   }
+  //   return users;
+  // }
 
-  // Generate dummy travel details
-  static generateDummyTravelDetails() {
-    const travels = [];
-    const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-    const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Delayed', 'Rescheduled'];
-    const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-    const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
-    const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
+  // // Generate dummy travel details
+  // static generateDummyTravelDetails() {
+  //   const travels = [];
+  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
+  //   const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Delayed', 'Rescheduled'];
+  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
+  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
+  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
 
-    // Generate consistent phone numbers for travelers (first 10 users)
-    const travelerPhoneNumbers = [];
-    for (let i = 0; i < 10; i++) {
-      travelerPhoneNumbers.push(ReportController.generatePhoneNumber());
-    }
+  //   // Generate consistent phone numbers for travelers (first 10 users)
+  //   const travelerPhoneNumbers = [];
+  //   for (let i = 0; i < 10; i++) {
+  //     travelerPhoneNumbers.push(ReportController.generatePhoneNumber());
+  //   }
 
-    for (let i = 0; i < 50; i++) {
-      const travelDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
-      const startTime = new Date(travelDate.getTime() + Math.random() * 24 * 60 * 60 * 1000);
-      const endTime = new Date(startTime.getTime() + Math.random() * 12 * 60 * 60 * 1000);
-      const actualStartTime = Math.random() > 0.3 ? new Date(startTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
-      const actualEndTime = Math.random() > 0.5 ? new Date(endTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
+  //   for (let i = 0; i < 50; i++) {
+  //     const travelDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
+  //     const startTime = new Date(travelDate.getTime() + Math.random() * 24 * 60 * 60 * 1000);
+  //     const endTime = new Date(startTime.getTime() + Math.random() * 12 * 60 * 60 * 1000);
+  //     const actualStartTime = Math.random() > 0.3 ? new Date(startTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
+  //     const actualEndTime = Math.random() > 0.5 ? new Date(endTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
       
-      const baseAmount = Math.random() * 5000 + 500;
-      const discount = Math.random() * 500;
-      const finalAmount = baseAmount - discount;
+  //     const baseAmount = Math.random() * 5000 + 500;
+  //     const discount = Math.random() * 500;
+  //     const finalAmount = baseAmount - discount;
       
-      travels.push({
-        travelId: `travel_${i + 1}`,
-        phoneNumber: travelerPhoneNumbers[i % 10], // Use consistent traveler phone numbers
-        Leavinglocation: cities[Math.floor(Math.random() * cities.length)],
-        Goinglocation: cities[Math.floor(Math.random() * cities.length)],
-        fullFrom: cities[Math.floor(Math.random() * cities.length)],
-        fullTo: cities[Math.floor(Math.random() * cities.length)],
-        travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
-        travelmode_number: Math.floor(Math.random() * 1000) + 1,
-        vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-        vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-        travelDate: travelDate,
-        expectedStartTime: startTime,
-        expectedEndTime: endTime,
-        actualStartTime: actualStartTime,
-        actualEndTime: actualEndTime,
-        endDate: endTime,
-        distance: Math.floor(Math.random() * 1000) + 50,
-        duration: Math.floor(Math.random() * 24) + 1,
-        expectedearning: ReportController.formatAmount(baseAmount),
-        payableAmount: ReportController.formatAmount(finalAmount),
-        baseAmount: ReportController.formatAmount(baseAmount),
-        discount: ReportController.formatAmount(discount),
-        weight: Math.floor(Math.random() * 100) + 10,
-        TE: Math.floor(Math.random() * 50) + 5,
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        startedat: actualStartTime,
-        endedat: actualEndTime,
-        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-        paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
-        averageRating: (Math.random() * 5).toFixed(1),
-        totalrating: Math.floor(Math.random() * 50),
-        review: Math.random() > 0.7 ? `Great service! Travel was smooth and on time.` : null,
-        specialInstructions: Math.random() > 0.8 ? 'Handle with care, fragile items' : null,
-        insuranceAmount: ReportController.formatAmount(Math.random() * 1000 + 100),
-        fuelCost: ReportController.formatAmount(Math.random() * 500 + 50),
-        tollCharges: ReportController.formatAmount(Math.random() * 200 + 20),
-        createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
-      });
-    }
-    return travels;
-  }
+  //     travels.push({
+  //       travelId: `travel_${i + 1}`,
+  //       phoneNumber: travelerPhoneNumbers[i % 10], // Use consistent traveler phone numbers
+  //       Leavinglocation: cities[Math.floor(Math.random() * cities.length)],
+  //       Goinglocation: cities[Math.floor(Math.random() * cities.length)],
+  //       fullFrom: cities[Math.floor(Math.random() * cities.length)],
+  //       fullTo: cities[Math.floor(Math.random() * cities.length)],
+  //       travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
+  //       travelmode_number: Math.floor(Math.random() * 1000) + 1,
+  //       vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
+  //       vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+  //       travelDate: travelDate,
+  //       expectedStartTime: startTime,
+  //       expectedEndTime: endTime,
+  //       actualStartTime: actualStartTime,
+  //       actualEndTime: actualEndTime,
+  //       endDate: endTime,
+  //       distance: Math.floor(Math.random() * 1000) + 50,
+  //       duration: Math.floor(Math.random() * 24) + 1,
+  //       expectedearning: ReportController.formatAmount(baseAmount),
+  //       payableAmount: ReportController.formatAmount(finalAmount),
+  //       baseAmount: ReportController.formatAmount(baseAmount),
+  //       discount: ReportController.formatAmount(discount),
+  //       weight: Math.floor(Math.random() * 100) + 10,
+  //       TE: Math.floor(Math.random() * 50) + 5,
+  //       status: statuses[Math.floor(Math.random() * statuses.length)],
+  //       startedat: actualStartTime,
+  //       endedat: actualEndTime,
+  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+  //       paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
+  //       averageRating: (Math.random() * 5).toFixed(1),
+  //       totalrating: Math.floor(Math.random() * 50),
+  //       review: Math.random() > 0.7 ? `Great service! Travel was smooth and on time.` : null,
+  //       specialInstructions: Math.random() > 0.8 ? 'Handle with care, fragile items' : null,
+  //       insuranceAmount: ReportController.formatAmount(Math.random() * 1000 + 100),
+  //       fuelCost: ReportController.formatAmount(Math.random() * 500 + 50),
+  //       tollCharges: ReportController.formatAmount(Math.random() * 200 + 20),
+  //       createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
+  //       updatedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+  //     });
+  //   }
+  //   return travels;
+  // }
 
-  // Generate dummy consignment details
-  static generateDummyConsignments() {
-    const consignments = [];
-    const categories = ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Documents', 'Automotive', 'Healthcare', 'Sports', 'Jewelry'];
-    const subcategories = {
-      'Electronics': ['Mobile', 'Laptop', 'Tablet', 'Camera', 'Headphones', 'Speaker'],
-      'Clothing': ['Shirts', 'Pants', 'Dresses', 'Shoes', 'Bags', 'Accessories'],
-      'Books': ['Novels', 'Textbooks', 'Magazines', 'Comics', 'Reference', 'Children'],
-      'Food': ['Snacks', 'Fruits', 'Vegetables', 'Beverages', 'Dairy', 'Frozen'],
-      'Furniture': ['Chairs', 'Tables', 'Beds', 'Sofas', 'Cabinets', 'Lighting'],
-      'Documents': ['Legal', 'Personal', 'Business', 'Educational', 'Medical', 'Financial'],
-      'Automotive': ['Spare Parts', 'Tools', 'Accessories', 'Lubricants', 'Tires'],
-      'Healthcare': ['Medicines', 'Equipment', 'Supplies', 'Devices', 'Vitamins'],
-      'Sports': ['Equipment', 'Clothing', 'Shoes', 'Accessories', 'Fitness'],
-      'Jewelry': ['Gold', 'Silver', 'Diamond', 'Pearl', 'Platinum', 'Fashion']
-    };
-    const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
-    const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-    const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet', 'COD'];
-    const deliveryTypes = ['Standard', 'Express', 'Same Day', 'Next Day', 'Scheduled'];
+  // // Generate dummy consignment details
+  // static generateDummyConsignments() {
+  //   const consignments = [];
+  //   const categories = ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Documents', 'Automotive', 'Healthcare', 'Sports', 'Jewelry'];
+  //   const subcategories = {
+  //     'Electronics': ['Mobile', 'Laptop', 'Tablet', 'Camera', 'Headphones', 'Speaker'],
+  //     'Clothing': ['Shirts', 'Pants', 'Dresses', 'Shoes', 'Bags', 'Accessories'],
+  //     'Books': ['Novels', 'Textbooks', 'Magazines', 'Comics', 'Reference', 'Children'],
+  //     'Food': ['Snacks', 'Fruits', 'Vegetables', 'Beverages', 'Dairy', 'Frozen'],
+  //     'Furniture': ['Chairs', 'Tables', 'Beds', 'Sofas', 'Cabinets', 'Lighting'],
+  //     'Documents': ['Legal', 'Personal', 'Business', 'Educational', 'Medical', 'Financial'],
+  //     'Automotive': ['Spare Parts', 'Tools', 'Accessories', 'Lubricants', 'Tires'],
+  //     'Healthcare': ['Medicines', 'Equipment', 'Supplies', 'Devices', 'Vitamins'],
+  //     'Sports': ['Equipment', 'Clothing', 'Shoes', 'Accessories', 'Fitness'],
+  //     'Jewelry': ['Gold', 'Silver', 'Diamond', 'Pearl', 'Platinum', 'Fashion']
+  //   };
+  //   const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
+  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
+  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet', 'COD'];
+  //   const deliveryTypes = ['Standard', 'Express', 'Same Day', 'Next Day', 'Scheduled'];
 
-    // Generate consistent phone numbers for senders (last 10 users)
-    const senderPhoneNumbers = [];
-    for (let i = 0; i < 10; i++) {
-      senderPhoneNumbers.push(ReportController.generatePhoneNumber());
-    }
+  //   // Generate consistent phone numbers for senders (last 10 users)
+  //   const senderPhoneNumbers = [];
+  //   for (let i = 0; i < 10; i++) {
+  //     senderPhoneNumbers.push(ReportController.generatePhoneNumber());
+  //   }
 
-    for (let i = 0; i < 80; i++) {
-      const dateOfSending = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000);
-      const category = categories[Math.floor(Math.random() * categories.length)];
-      const subcategory = subcategories[category][Math.floor(Math.random() * subcategories[category].length)];
+  //   for (let i = 0; i < 80; i++) {
+  //     const dateOfSending = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000);
+  //     const category = categories[Math.floor(Math.random() * categories.length)];
+  //     const subcategory = subcategories[category][Math.floor(Math.random() * subcategories[category].length)];
       
-      const baseAmount = Math.random() * 3000 + 200;
-      const insuranceAmount = Math.random() * 500 + 50;
-      const totalAmount = baseAmount + insuranceAmount;
+  //     const baseAmount = Math.random() * 3000 + 200;
+  //     const insuranceAmount = Math.random() * 500 + 50;
+  //     const totalAmount = baseAmount + insuranceAmount;
       
-      consignments.push({
-        consignmentId: `consignment_${i + 1}`,
-        phoneNumber: senderPhoneNumbers[i % 10], // Use consistent sender phone numbers
-        Description: `${category} - ${subcategory} consignment ${i + 1}`,
-        category: category,
-        subcategory: subcategory,
-        weight: Math.floor(Math.random() * 50) + 1,
-        dimensionalweight: Math.floor(Math.random() * 30) + 1,
-        dimensions: `${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}`,
-        distance: Math.floor(Math.random() * 1000) + 50,
-        duration: Math.floor(Math.random() * 72) + 1,
-        earning: ReportController.formatAmount(baseAmount),
-        insuranceAmount: ReportController.formatAmount(insuranceAmount),
-        totalAmount: ReportController.formatAmount(totalAmount),
-        startinglocation: cities[Math.floor(Math.random() * cities.length)],
-        goinglocation: cities[Math.floor(Math.random() * cities.length)],
-        recievername: `Receiver ${i + 1}`,
-        recieverphone: ReportController.generatePhoneNumber(),
-        receiverEmail: `receiver${i + 1}@example.com`,
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        handleWithCare: Math.random() > 0.7,
-        specialRequest: Math.random() > 0.8 ? 'Handle with extra care, fragile items' : null,
-        deliveryType: deliveryTypes[Math.floor(Math.random() * deliveryTypes.length)],
-        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-        paymentStatus: ['Pending', 'Completed', 'Failed', 'Refunded'][Math.floor(Math.random() * 4)],
-        trackingNumber: `TN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-        estimatedDelivery: new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000),
-        actualDelivery: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-        pickupDate: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
-        pickupTime: new Date(dateOfSending.getTime() - Math.random() * 12 * 60 * 60 * 1000),
-        deliveryDate: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-        deliveryTime: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-        signature: Math.random() > 0.6 ? `Receiver_${i + 1}_Signature` : null,
-        notes: Math.random() > 0.7 ? `Special handling required for ${category} items` : null,
-        dateOfSending: dateOfSending,
-        createdAt: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(dateOfSending.getTime() + Math.random() * 24 * 60 * 60 * 1000)
-      });
-    }
-    return consignments;
-  }
+  //     consignments.push({
+  //       consignmentId: `consignment_${i + 1}`,
+  //       phoneNumber: senderPhoneNumbers[i % 10], // Use consistent sender phone numbers
+  //       Description: `${category} - ${subcategory} consignment ${i + 1}`,
+  //       category: category,
+  //       subcategory: subcategory,
+  //       weight: Math.floor(Math.random() * 50) + 1,
+  //       dimensionalweight: Math.floor(Math.random() * 30) + 1,
+  //       dimensions: `${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}`,
+  //       distance: Math.floor(Math.random() * 1000) + 50,
+  //       duration: Math.floor(Math.random() * 72) + 1,
+  //       earning: ReportController.formatAmount(baseAmount),
+  //       insuranceAmount: ReportController.formatAmount(insuranceAmount),
+  //       totalAmount: ReportController.formatAmount(totalAmount),
+  //       startinglocation: cities[Math.floor(Math.random() * cities.length)],
+  //       goinglocation: cities[Math.floor(Math.random() * cities.length)],
+  //       recievername: `Receiver ${i + 1}`,
+  //       recieverphone: ReportController.generatePhoneNumber(),
+  //       receiverEmail: `receiver${i + 1}@example.com`,
+  //       status: statuses[Math.floor(Math.random() * statuses.length)],
+  //       handleWithCare: Math.random() > 0.7,
+  //       specialRequest: Math.random() > 0.8 ? 'Handle with extra care, fragile items' : null,
+  //       deliveryType: deliveryTypes[Math.floor(Math.random() * deliveryTypes.length)],
+  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+  //       paymentStatus: ['Pending', 'Completed', 'Failed', 'Refunded'][Math.floor(Math.random() * 4)],
+  //       trackingNumber: `TN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
+  //       estimatedDelivery: new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000),
+  //       actualDelivery: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
+  //       pickupDate: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
+  //       pickupTime: new Date(dateOfSending.getTime() - Math.random() * 12 * 60 * 60 * 1000),
+  //       deliveryDate: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
+  //       deliveryTime: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
+  //       signature: Math.random() > 0.6 ? `Receiver_${i + 1}_Signature` : null,
+  //       notes: Math.random() > 0.7 ? `Special handling required for ${category} items` : null,
+  //       dateOfSending: dateOfSending,
+  //       createdAt: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
+  //       updatedAt: new Date(dateOfSending.getTime() + Math.random() * 24 * 60 * 60 * 1000)
+  //     });
+  //   }
+  //   return consignments;
+  // }
 
-  // Generate dummy consignment history
-  static generateDummyConsignmentHistory() {
-    const history = [];
-    const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-    const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-    const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
-    const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
+  // // Generate dummy consignment history
+  // static generateDummyConsignmentHistory() {
+  //   const history = [];
+  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
+  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
+  //   const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
+  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
 
-    for (let i = 0; i < 60; i++) {
-      const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-      const delivered = Math.random() > 0.6 ? new Date(timestamp.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-      const pickupTime = new Date(timestamp.getTime() + Math.random() * 2 * 60 * 60 * 1000);
-      const deliveryTime = delivered ? new Date(delivered.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
+  //   for (let i = 0; i < 60; i++) {
+  //     const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+  //     const delivered = Math.random() > 0.6 ? new Date(timestamp.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
+  //     const pickupTime = new Date(timestamp.getTime() + Math.random() * 2 * 60 * 60 * 1000);
+  //     const deliveryTime = delivered ? new Date(delivered.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
       
-      const baseEarning = Math.random() * 2000 + 300;
-      const commission = baseEarning * 0.1; // 10% commission
-      const netEarning = baseEarning - commission;
+  //     const baseEarning = Math.random() * 2000 + 300;
+  //     const commission = baseEarning * 0.1; // 10% commission
+  //     const netEarning = baseEarning - commission;
       
-      history.push({
-        consignmentId: `consignment_${i + 1}`,
-        senderPhoneNumber: ReportController.generatePhoneNumber(),
-        description: `Detailed history for consignment ${i + 1}`,
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        expectedEarning: ReportController.formatAmount(baseEarning),
-        commission: ReportController.formatAmount(commission),
-        netEarning: ReportController.formatAmount(netEarning),
-        distance: Math.floor(Math.random() * 800) + 50,
-        category: ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Automotive', 'Healthcare'][Math.floor(Math.random() * 7)],
-        pickupLocation: cities[Math.floor(Math.random() * cities.length)],
-        deliveryLocation: cities[Math.floor(Math.random() * cities.length)],
-        delivered: delivered,
-        pickupTime: pickupTime,
-        deliveryTime: deliveryTime,
-        actualDistance: Math.floor(Math.random() * 800) + 50,
-        fuelCost: ReportController.formatAmount(Math.random() * 300 + 50),
-        tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
-        insuranceAmount: ReportController.formatAmount(Math.random() * 200 + 20),
-        totalCost: ReportController.formatAmount(Math.random() * 500 + 100),
-        profit: ReportController.formatAmount(Math.random() * 1000 + 200),
-        traveldetails: [
-          {
-            travelId: `travel_${i + 1}`,
-            phoneNumber: ReportController.generatePhoneNumber(),
-            travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
-            vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-            vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-            timestamp: timestamp,
-            startTime: pickupTime,
-            endTime: deliveryTime,
-            actualDuration: Math.floor(Math.random() * 24) + 1,
-            status: ['Active', 'Completed', 'Cancelled'][Math.floor(Math.random() * 3)],
-            rating: (Math.random() * 5).toFixed(1),
-            review: Math.random() > 0.7 ? 'Excellent service, on time delivery' : null
-          }
-        ]
-      });
-    }
-    return history;
-  }
+  //     history.push({
+  //       consignmentId: `consignment_${i + 1}`,
+  //       senderPhoneNumber: ReportController.generatePhoneNumber(),
+  //       description: `Detailed history for consignment ${i + 1}`,
+  //       status: statuses[Math.floor(Math.random() * statuses.length)],
+  //       expectedEarning: ReportController.formatAmount(baseEarning),
+  //       commission: ReportController.formatAmount(commission),
+  //       netEarning: ReportController.formatAmount(netEarning),
+  //       distance: Math.floor(Math.random() * 800) + 50,
+  //       category: ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Automotive', 'Healthcare'][Math.floor(Math.random() * 7)],
+  //       pickupLocation: cities[Math.floor(Math.random() * cities.length)],
+  //       deliveryLocation: cities[Math.floor(Math.random() * cities.length)],
+  //       delivered: delivered,
+  //       pickupTime: pickupTime,
+  //       deliveryTime: deliveryTime,
+  //       actualDistance: Math.floor(Math.random() * 800) + 50,
+  //       fuelCost: ReportController.formatAmount(Math.random() * 300 + 50),
+  //       tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
+  //       insuranceAmount: ReportController.formatAmount(Math.random() * 200 + 20),
+  //       totalCost: ReportController.formatAmount(Math.random() * 500 + 100),
+  //       profit: ReportController.formatAmount(Math.random() * 1000 + 200),
+  //       traveldetails: [
+  //         {
+  //           travelId: `travel_${i + 1}`,
+  //           phoneNumber: ReportController.generatePhoneNumber(),
+  //           travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
+  //           vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
+  //           vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+  //           timestamp: timestamp,
+  //           startTime: pickupTime,
+  //           endTime: deliveryTime,
+  //           actualDuration: Math.floor(Math.random() * 24) + 1,
+  //           status: ['Active', 'Completed', 'Cancelled'][Math.floor(Math.random() * 3)],
+  //           rating: (Math.random() * 5).toFixed(1),
+  //           review: Math.random() > 0.7 ? 'Excellent service, on time delivery' : null
+  //         }
+  //       ]
+  //     });
+  //   }
+  //   return history;
+  // }
 
-  // Generate dummy request for carry
-  static generateDummyRequestForCarry() {
-    const requests = [];
-    const statuses = ['Pending', 'Accepted', 'Rejected', 'Completed', 'Cancelled', 'Expired'];
-    const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-    const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
-    const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
+  // // Generate dummy request for carry
+  // static generateDummyRequestForCarry() {
+  //   const requests = [];
+  //   const statuses = ['Pending', 'Accepted', 'Rejected', 'Completed', 'Cancelled', 'Expired'];
+  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
+  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
+  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
 
-    for (let i = 0; i < 40; i++) {
-      const createdAt = new Date(Date.now() - Math.random() * 20 * 24 * 60 * 60 * 1000);
-      const dateandtimeofdelivery = Math.random() > 0.5 ? new Date(createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-      const acceptedAt = Math.random() > 0.3 ? new Date(createdAt.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
+  //   for (let i = 0; i < 40; i++) {
+  //     const createdAt = new Date(Date.now() - Math.random() * 20 * 24 * 60 * 60 * 1000);
+  //     const dateandtimeofdelivery = Math.random() > 0.5 ? new Date(createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
+  //     const acceptedAt = Math.random() > 0.3 ? new Date(createdAt.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
       
-      const baseEarning = Math.random() * 1500 + 200;
-      const commission = baseEarning * 0.15; // 15% commission
-      const netEarning = baseEarning - commission;
+  //     const baseEarning = Math.random() * 1500 + 200;
+  //     const commission = baseEarning * 0.15; // 15% commission
+  //     const netEarning = baseEarning - commission;
       
-      requests.push({
-        consignmentId: `consignment_${i + 1}`,
-        travelId: `travel_${i + 1}`,
-        travellername: `Traveler ${i + 1}`,
-        travelerPhone: ReportController.generatePhoneNumber(),
-        travelerEmail: `traveler${i + 1}@example.com`,
-        earning: ReportController.formatAmount(baseEarning),
-        commission: ReportController.formatAmount(commission),
-        netEarning: ReportController.formatAmount(netEarning),
-        travelmode: travelModes[Math.floor(Math.random() * travelModes.length)],
-        vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-        vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        dateandtimeofdelivery: dateandtimeofdelivery,
-        acceptedAt: acceptedAt,
-        paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-        paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
-        rating: (Math.random() * 5).toFixed(1),
-        review: Math.random() > 0.6 ? 'Great service, highly recommended!' : null,
-        specialInstructions: Math.random() > 0.7 ? 'Handle with care, fragile items' : null,
-        insuranceAmount: ReportController.formatAmount(Math.random() * 300 + 50),
-        fuelCost: ReportController.formatAmount(Math.random() * 200 + 30),
-        tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
-        totalCost: ReportController.formatAmount(Math.random() * 400 + 80),
-        profit: ReportController.formatAmount(Math.random() * 800 + 150),
-        createdAt: createdAt,
-        updatedAt: new Date(createdAt.getTime() + Math.random() * 24 * 60 * 60 * 1000)
-      });
-    }
-    return requests;
-  }
+  //     requests.push({
+  //       consignmentId: `consignment_${i + 1}`,
+  //       travelId: `travel_${i + 1}`,
+  //       travellername: `Traveler ${i + 1}`,
+  //       travelerPhone: ReportController.generatePhoneNumber(),
+  //       travelerEmail: `traveler${i + 1}@example.com`,
+  //       earning: ReportController.formatAmount(baseEarning),
+  //       commission: ReportController.formatAmount(commission),
+  //       netEarning: ReportController.formatAmount(netEarning),
+  //       travelmode: travelModes[Math.floor(Math.random() * travelModes.length)],
+  //       vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
+  //       vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+  //       status: statuses[Math.floor(Math.random() * statuses.length)],
+  //       dateandtimeofdelivery: dateandtimeofdelivery,
+  //       acceptedAt: acceptedAt,
+  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+  //       paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
+  //       rating: (Math.random() * 5).toFixed(1),
+  //       review: Math.random() > 0.6 ? 'Great service, highly recommended!' : null,
+  //       specialInstructions: Math.random() > 0.7 ? 'Handle with care, fragile items' : null,
+  //       insuranceAmount: ReportController.formatAmount(Math.random() * 300 + 50),
+  //       fuelCost: ReportController.formatAmount(Math.random() * 200 + 30),
+  //       tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
+  //       totalCost: ReportController.formatAmount(Math.random() * 400 + 80),
+  //       profit: ReportController.formatAmount(Math.random() * 800 + 150),
+  //       createdAt: createdAt,
+  //       updatedAt: new Date(createdAt.getTime() + Math.random() * 24 * 60 * 60 * 1000)
+  //     });
+  //   }
+  //   return requests;
+  // }
 
-  // Generate dummy earnings
-  static generateDummyEarnings() {
-    const earnings = [];
-    const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
-    const transactionTypes = ['Travel Payment', 'Consignment Payment', 'Bonus', 'Refund', 'Commission', 'Incentive', 'Penalty', 'Adjustment'];
-    const transactionStatuses = ['Completed', 'Pending', 'Failed', 'Refunded', 'Cancelled'];
+  // // Generate dummy earnings
+  // static generateDummyEarnings() {
+  //   const earnings = [];
+  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
+  //   const transactionTypes = ['Travel Payment', 'Consignment Payment', 'Bonus', 'Refund', 'Commission', 'Incentive', 'Penalty', 'Adjustment'];
+  //   const transactionStatuses = ['Completed', 'Pending', 'Failed', 'Refunded', 'Cancelled'];
 
-    for (let i = 0; i < 25; i++) {
-      const transactions = [];
-      const numTransactions = Math.floor(Math.random() * 15) + 5;
+  //   for (let i = 0; i < 25; i++) {
+  //     const transactions = [];
+  //     const numTransactions = Math.floor(Math.random() * 15) + 5;
       
-      for (let j = 0; j < numTransactions; j++) {
-        const transactionType = transactionTypes[Math.floor(Math.random() * transactionTypes.length)];
-        const amount = Math.random() * 2000 + 100;
-        const status = transactionStatuses[Math.floor(Math.random() * transactionStatuses.length)];
-        const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
+  //     for (let j = 0; j < numTransactions; j++) {
+  //       const transactionType = transactionTypes[Math.floor(Math.random() * transactionTypes.length)];
+  //       const amount = Math.random() * 2000 + 100;
+  //       const status = transactionStatuses[Math.floor(Math.random() * transactionStatuses.length)];
+  //       const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
         
-        transactions.push({
-          transactionId: `TXN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-          title: transactionType,
-          description: `${transactionType} for service ${j + 1}`,
-          amount: ReportController.formatAmount(amount),
-          status: status,
-          paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-          timestamp: timestamp,
-          referenceNumber: `REF${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-          bankTransactionId: status === 'Completed' ? `BANK${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-          upiTransactionId: status === 'Completed' ? `UPI${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-          notes: Math.random() > 0.7 ? 'Transaction processed successfully' : null
-        });
-      }
+  //       transactions.push({
+  //         transactionId: `TXN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
+  //         title: transactionType,
+  //         description: `${transactionType} for service ${j + 1}`,
+  //         amount: ReportController.formatAmount(amount),
+  //         status: status,
+  //         paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
+  //         timestamp: timestamp,
+  //         referenceNumber: `REF${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
+  //         bankTransactionId: status === 'Completed' ? `BANK${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
+  //         upiTransactionId: status === 'Completed' ? `UPI${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
+  //         notes: Math.random() > 0.7 ? 'Transaction processed successfully' : null
+  //       });
+  //     }
 
-      const totalEarnings = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      const completedTransactions = transactions.filter(t => t.status === 'Completed');
-      const pendingTransactions = transactions.filter(t => t.status === 'Pending');
-      const failedTransactions = transactions.filter(t => t.status === 'Failed');
+  //     const totalEarnings = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  //     const completedTransactions = transactions.filter(t => t.status === 'Completed');
+  //     const pendingTransactions = transactions.filter(t => t.status === 'Pending');
+  //     const failedTransactions = transactions.filter(t => t.status === 'Failed');
 
-      earnings.push({
-        phoneNumber: ReportController.generatePhoneNumber(),
-        totalEarnings: ReportController.formatAmount(totalEarnings),
-        completedEarnings: ReportController.formatAmount(completedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-        pendingEarnings: ReportController.formatAmount(pendingTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-        failedEarnings: ReportController.formatAmount(failedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-        totalTransactions: transactions.length,
-        completedTransactions: completedTransactions.length,
-        pendingTransactions: pendingTransactions.length,
-        failedTransactions: failedTransactions.length,
-        averageTransactionAmount: ReportController.formatAmount(totalEarnings / transactions.length),
-        lastTransactionDate: transactions[transactions.length - 1]?.timestamp,
-        transactions: transactions,
-        // Additional fields
-        monthlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 0.3 + 0.7)),
-        yearlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 8 + 4)),
-        commissionEarned: ReportController.formatAmount(totalEarnings * 0.1),
-        bonusEarned: ReportController.formatAmount(Math.random() * 1000 + 200),
-        penalties: ReportController.formatAmount(Math.random() * 100 + 10),
-        netEarnings: ReportController.formatAmount(totalEarnings + Math.random() * 1000 - Math.random() * 100)
-      });
-    }
-    return earnings;
-  }
+  //     earnings.push({
+  //       phoneNumber: ReportController.generatePhoneNumber(),
+  //       totalEarnings: ReportController.formatAmount(totalEarnings),
+  //       completedEarnings: ReportController.formatAmount(completedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
+  //       pendingEarnings: ReportController.formatAmount(pendingTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
+  //       failedEarnings: ReportController.formatAmount(failedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
+  //       totalTransactions: transactions.length,
+  //       completedTransactions: completedTransactions.length,
+  //       pendingTransactions: pendingTransactions.length,
+  //       failedTransactions: failedTransactions.length,
+  //       averageTransactionAmount: ReportController.formatAmount(totalEarnings / transactions.length),
+  //       lastTransactionDate: transactions[transactions.length - 1]?.timestamp,
+  //       transactions: transactions,
+  //       // Additional fields
+  //       monthlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 0.3 + 0.7)),
+  //       yearlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 8 + 4)),
+  //       commissionEarned: ReportController.formatAmount(totalEarnings * 0.1),
+  //       bonusEarned: ReportController.formatAmount(Math.random() * 1000 + 200),
+  //       penalties: ReportController.formatAmount(Math.random() * 100 + 10),
+  //       netEarnings: ReportController.formatAmount(totalEarnings + Math.random() * 1000 - Math.random() * 100)
+  //     });
+  //   }
+  //   return earnings;
+  // }
 
   // Get Traveler Report (Enhanced) - Now shows each travel separately with dummy data
   static async getTravelerReport(req, res) {
@@ -2401,11 +2401,11 @@ class ReportController {
       console.log('📈 Generating Business Intelligence Report with dummy data...');
       
       // Generate dummy data
-      const consignments = ReportController.generateDummyConsignments();
-      const userProfiles = ReportController.generateDummyUsers();
-      const travelDetails = ReportController.generateDummyTravelDetails();
-      const consignmentHistory = ReportController.generateDummyConsignmentHistory();
-      const earnings = ReportController.generateDummyEarnings();
+      // const consignments = ReportController.generateDummyConsignments();
+      // const userProfiles = ReportController.generateDummyUsers();
+      // const travelDetails = ReportController.generateDummyTravelDetails();
+      // const consignmentHistory = ReportController.generateDummyConsignmentHistory();
+      // const earnings = ReportController.generateDummyEarnings();
 
       // Calculate business metrics
       const totalConsignments = consignments.length;
