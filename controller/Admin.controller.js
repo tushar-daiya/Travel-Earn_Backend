@@ -624,212 +624,42 @@ module.exports.getUserTravelDetails = async (req, res) => {
   const searchRegex = new RegExp(search, "i");
 
   try {
-    // Start the aggregation pipeline
-    const pipeline = [
-      { $unwind: "$transactions" },
-      { $match: { "transactions.status": "Completed" } },
-      {
-        $addFields: {
-          normalizedPhone: {
-            $replaceAll: {
-              input: "$phoneNumber",
-              find: " ",
-              replacement: "",
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "userprofiles",
-          let: { phone: "$normalizedPhone" },
-          pipeline: [
-            {
-              $addFields: {
-                normalizedUserPhone: {
-                  $replaceAll: {
-                    input: "$phoneNumber",
-                    find: " ",
-                    replacement: "",
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
-              },
-            },
-          ],
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-    ];
-
-    // If there is a search term, add a $match filter to the pipeline
-    if (search) {
-      pipeline.push({
-        $match: {
+    // Build search filter
+    const searchFilter = search
+      ? {
           $or: [
-            { "user.firstName": searchRegex },
-            { "user.lastName": searchRegex },
-            { "user.email": searchRegex },
-            { "user.phoneNumber": searchRegex },
+            { firstName: searchRegex },
+            { lastName: searchRegex },
+            { email: searchRegex },
+            { phoneNumber: searchRegex },
             {
               $expr: {
                 $regexMatch: {
-                  input: {
-                    $concat: ["$user.firstName", " ", "$user.lastName"],
-                  },
+                  input: { $concat: ["$firstName", " ", "$lastName"] },
                   regex: searchRegex,
                 },
               },
             },
           ],
-        },
-      });
-    }
+        }
+      : {};
 
-    // Continue with the rest of the aggregation pipeline
-    pipeline.push(
-      {
-        $lookup: {
-          from: "traveldetails",
-          localField: "transactions.travelId",
-          foreignField: "travelId",
-          as: "travel",
-        },
-      },
-      { $unwind: { path: "$travel", preserveNullAndEmptyArrays: true } },
-      {
-        $addFields: {
-          distanceNumber: {
-            $cond: {
-              if: { $ifNull: ["$travel.distance", false] },
-              then: {
-                $toDouble: {
-                  $getField: {
-                    field: "match",
-                    input: {
-                      $regexFind: {
-                        input: "$travel.distance",
-                        regex: /[\d.]+/,
-                      },
-                    },
-                  },
-                },
-              },
-              else: 0,
-            },
-          },
-          transactionAmount: { $toDouble: "$transactions.amount" },
-        },
-      },
-      {
-        $group: {
-          _id: "$user._id",
-          username: {
-            $first: { $concat: ["$user.firstName", " ", "$user.lastName"] },
-          },
-          email: { $first: "$user.email" },
-          phoneNumber: { $first: "$user.phoneNumber" },
-          totalEarnings: { $sum: "$transactionAmount" },
-          totalDistance: { $sum: "$distanceNumber" },
-        },
-      },
-      {
-        $project: {
-          id: "$_id",
-          username: 1,
-          email: 1,
-          phoneNumber: 1,
-          totalEarnings: 1,
-          totalDistance: 1,
-        },
-      },
-      { $skip: skip },
-      { $limit: limit }
-    );
+    const users = await userprofiles
+      .find(searchFilter)
+      .select("firstName lastName email phoneNumber totalRating")
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    const result = await Earning.aggregate(pipeline);
+    const result = users.map(user => ({
+      id: user._id,
+      username: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      totalRating: user.totalRating || 0,
+    }));
 
-    // COUNT total results after search filter (optional)
-    const countAgg = await Earning.aggregate([
-      { $unwind: "$transactions" },
-      { $match: { "transactions.status": "Completed" } },
-      {
-        $addFields: {
-          normalizedPhone: {
-            $replaceAll: {
-              input: "$phoneNumber",
-              find: " ",
-              replacement: "",
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "userprofiles",
-          let: { phone: "$normalizedPhone" },
-          pipeline: [
-            {
-              $addFields: {
-                normalizedUserPhone: {
-                  $replaceAll: {
-                    input: "$phoneNumber",
-                    find: " ",
-                    replacement: "",
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
-              },
-            },
-          ],
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-      ...(search
-        ? [
-            {
-              $match: {
-                $or: [
-                  { "user.firstName": searchRegex },
-                  { "user.lastName": searchRegex },
-                  { "user.email": searchRegex },
-                  { "user.phoneNumber": searchRegex },
-                  {
-                    $expr: {
-                      $regexMatch: {
-                        input: {
-                          $concat: ["$user.firstName", " ", "$user.lastName"],
-                        },
-                        regex: searchRegex,
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          ]
-        : []),
-      {
-        $group: {
-          _id: "$user._id",
-        },
-      },
-      {
-        $count: "total",
-      },
-    ]);
-
-    const totalCount = countAgg[0]?.total || 0;
+    const totalCount = await userprofiles.countDocuments(searchFilter);
 
     res.status(200).json({
       success: true,

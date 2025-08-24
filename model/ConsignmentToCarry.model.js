@@ -26,7 +26,7 @@ const consignmentToCarrySchema = new mongoose.Schema({
   senderphone: { type: String },
   receiverphone: { type: String },
   earning: {
-    senderTotal: { type: Number },
+    senderTotalPay: { type: Number },
     totalFare: { type: Number },
   },
   status: {

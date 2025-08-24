@@ -7,6 +7,8 @@ const DriverSchema = new mongoose.Schema({
   
   startinglocation: { type: String, required: true },
   goinglocation: { type: String, required: true },
+  fullstartinglocation: { type: String },
+  fullgoinglocation: { type: String },
   LeavingCoordinates: {
     latitude: { type: Number },
     longitude: { type: Number }
@@ -22,10 +24,10 @@ const DriverSchema = new mongoose.Schema({
   category:{type:String,enum:['document','nondocument']},
   subcategory:{type:String},
   dimensions: {
-    length: { type: String, required: true },
-    breadth: { type: String, required: true },
-    height: { type: String, required: true },
-    unit: { type: String, enum: ['cm', 'inch'], required: true },
+    length: { type: String },
+    breadth: { type: String },
+    height: { type: String },
+    unit: { type: String, enum: ['cm', 'inch'] },
   },
   handleWithCare: {
     type: Boolean,
@@ -38,25 +40,17 @@ const DriverSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
-  durationAtEndPoint: {
-    type: String,
-    required: true,
-  },
-  images: {
-    type: String,
-    default:null // Store image URLs or file paths
-  },
+  images: [{
+    type: String // Store image URLs or file paths as array
+  }],
   consignmentId:{type:String},
-  earning:{type:String},
   distance:{type:String},
   duration:{type:String},
-  trainfare:{type:String},
-  aeroplanefare:{type:String},
   
   status: { 
     type: String, 
-    enum: ["Pending", "Not Started", "In Progress", "Completed", "Rejected","Accepted"], 
-    default: "Pending" 
+    enum: ["Pending", "Yet to Collect", "Collected", "In Transit", "Delivered", "Completed", "Rejected","Accepted"], 
+    default: "Yet to Collect" 
   },
   sotp:{type:String},
   rotp:{type:String},
