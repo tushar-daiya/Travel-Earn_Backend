@@ -5,511 +5,51 @@ const ConsignmentDetails = require('../model/consignment.model');
 const ConsignmentHistory = require('../model/travel.history');
 
 class ReportController {
-  // Helper function to retry database operations
-  static async retryOperation(operation, maxRetries = 3, delay = 1000) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        if (attempt === maxRetries) {
-          throw error;
-        }
-        console.log(`⚠️ Database operation failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
-      }
-    }
-  }
-
-  // Helper function to safely format dates
-  static formatDate(dateValue) {
-    if (!dateValue) return 'N/A';
+  // Get Consignment Consolidated Report
+  static async getConsignmentConsolidatedReport(req, res) {
     try {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) return 'N/A';
-      return date.toISOString().split('T')[0];
-    } catch (error) {
-      return 'N/A';
-    }
-  }
-
-  // Helper function to create user lookup map
-  static createUserMap(users) {
-    const userMap = {};
-    users.forEach(user => {
-      userMap[user.phoneNumber] = user;
-    });
-    return userMap;
-  }
-
-  // Helper function to format amount to 2 decimal places
-  static formatAmount(amount) {
-    return parseFloat(amount || 0).toFixed(2);
-  }
-
-  // Helper function to generate 10-digit phone number
-  // static generatePhoneNumber() {
-  //   return Math.floor(1000000000 + Math.random() * 9000000000).toString();
-  // }
-
-  // // Generate dummy user profiles
-  // static generateDummyUsers() {
-  //   const users = [];
-  //   const names = [
-  //     'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis', 'David Wilson',
-  //     'Lisa Anderson', 'James Taylor', 'Jennifer Martinez', 'Robert Garcia', 'Amanda Rodriguez',
-  //     'William Lee', 'Michelle White', 'Christopher Hall', 'Jessica Allen', 'Daniel Young',
-  //     'Ashley King', 'Matthew Wright', 'Nicole Green', 'Joshua Baker', 'Stephanie Adams'
-  //   ];
-  //   const addresses = [
-  //     '123 Main Street, Mumbai, Maharashtra',
-  //     '456 Park Avenue, Delhi, Delhi',
-  //     '789 Lake Road, Bangalore, Karnataka',
-  //     '321 Hill Street, Chennai, Tamil Nadu',
-  //     '654 Ocean Drive, Kolkata, West Bengal',
-  //     '987 Mountain View, Hyderabad, Telangana',
-  //     '147 River Side, Pune, Maharashtra',
-  //     '258 Garden Lane, Ahmedabad, Gujarat',
-  //     '369 Sunset Boulevard, Jaipur, Rajasthan',
-  //     '741 Golden Gate, Lucknow, Uttar Pradesh'
-  //   ];
-  //   const vehicleTypes = ['Car', 'Bike', 'Van', 'Truck', 'Auto'];
-  //   const vehicleNumbers = ['MH01AB1234', 'DL02CD5678', 'KA03EF9012', 'TN04GH3456', 'WB05IJ7890'];
-
-  //   // Generate consistent phone numbers for better data mapping
-  //   const phoneNumbers = [];
-  //   for (let i = 0; i < 20; i++) {
-  //     phoneNumbers.push(ReportController.generatePhoneNumber());
-  //   }
-
-  //   for (let i = 0; i < 20; i++) {
-  //     const [firstName, lastName] = names[i].split(' ');
-  //     const isTraveler = i < 10;
-  //     users.push({
-  //       _id: `user_${i + 1}`,
-  //       userId: `user_${i + 1}`,
-  //       firstName,
-  //       lastName,
-  //       phoneNumber: phoneNumbers[i], // Use consistent phone numbers
-  //       email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
-  //       role: isTraveler ? 'traveler' : 'sender',
-  //       currentLocation: {
-  //         coordinates: [Math.random() * 180 - 90, Math.random() * 360 - 180]
-  //       },
-  //       address: addresses[Math.floor(Math.random() * addresses.length)],
-  //       averageRating: (Math.random() * 5).toFixed(1),
-  //       totalrating: Math.floor(Math.random() * 100),
-  //       isVerified: Math.random() > 0.3,
-  //       profilePicture: `https://example.com/profile_${i + 1}.jpg`,
-  //       // Traveler specific fields
-  //       vehicleType: isTraveler ? vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)] : null,
-  //       vehicleNumber: isTraveler ? vehicleNumbers[Math.floor(Math.random() * vehicleTypes.length)] : null,
-  //       licenseNumber: isTraveler ? `DL${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-  //       experience: isTraveler ? Math.floor(Math.random() * 10) + 1 : null,
-  //       totalTrips: isTraveler ? Math.floor(Math.random() * 500) + 10 : null,
-  //       totalEarnings: isTraveler ? ReportController.formatAmount(Math.random() * 50000 + 5000) : null,
-  //       // Sender specific fields
-  //       businessName: !isTraveler ? `${firstName} ${lastName} Enterprises` : null,
-  //       businessType: !isTraveler ? ['Retail', 'Manufacturing', 'Services', 'E-commerce'][Math.floor(Math.random() * 4)] : null,
-  //       totalConsignments: !isTraveler ? Math.floor(Math.random() * 200) + 10 : null,
-  //       totalSpent: !isTraveler ? ReportController.formatAmount(Math.random() * 100000 + 10000) : null,
-  //       // Common fields
-  //       dateOfBirth: new Date(1980 + Math.floor(Math.random() * 30), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)),
-  //       gender: ['Male', 'Female', 'Other'][Math.floor(Math.random() * 3)],
-  //       emergencyContact: ReportController.generatePhoneNumber(),
-  //       emergencyContactName: names[Math.floor(Math.random() * names.length)],
-  //       createdAt: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
-  //       lastUpdated: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
-  //     });
-  //   }
-  //   return users;
-  // }
-
-  // // Generate dummy travel details
-  // static generateDummyTravelDetails() {
-  //   const travels = [];
-  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-  //   const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Delayed', 'Rescheduled'];
-  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
-  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
-
-  //   // Generate consistent phone numbers for travelers (first 10 users)
-  //   const travelerPhoneNumbers = [];
-  //   for (let i = 0; i < 10; i++) {
-  //     travelerPhoneNumbers.push(ReportController.generatePhoneNumber());
-  //   }
-
-  //   for (let i = 0; i < 50; i++) {
-  //     const travelDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
-  //     const startTime = new Date(travelDate.getTime() + Math.random() * 24 * 60 * 60 * 1000);
-  //     const endTime = new Date(startTime.getTime() + Math.random() * 12 * 60 * 60 * 1000);
-  //     const actualStartTime = Math.random() > 0.3 ? new Date(startTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
-  //     const actualEndTime = Math.random() > 0.5 ? new Date(endTime.getTime() + Math.random() * 60 * 60 * 1000) : null;
-      
-  //     const baseAmount = Math.random() * 5000 + 500;
-  //     const discount = Math.random() * 500;
-  //     const finalAmount = baseAmount - discount;
-      
-  //     travels.push({
-  //       travelId: `travel_${i + 1}`,
-  //       phoneNumber: travelerPhoneNumbers[i % 10], // Use consistent traveler phone numbers
-  //       Leavinglocation: cities[Math.floor(Math.random() * cities.length)],
-  //       Goinglocation: cities[Math.floor(Math.random() * cities.length)],
-  //       fullFrom: cities[Math.floor(Math.random() * cities.length)],
-  //       fullTo: cities[Math.floor(Math.random() * cities.length)],
-  //       travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
-  //       travelmode_number: Math.floor(Math.random() * 1000) + 1,
-  //       vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-  //       vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-  //       travelDate: travelDate,
-  //       expectedStartTime: startTime,
-  //       expectedEndTime: endTime,
-  //       actualStartTime: actualStartTime,
-  //       actualEndTime: actualEndTime,
-  //       endDate: endTime,
-  //       distance: Math.floor(Math.random() * 1000) + 50,
-  //       duration: Math.floor(Math.random() * 24) + 1,
-  //       expectedearning: ReportController.formatAmount(baseAmount),
-  //       payableAmount: ReportController.formatAmount(finalAmount),
-  //       baseAmount: ReportController.formatAmount(baseAmount),
-  //       discount: ReportController.formatAmount(discount),
-  //       weight: Math.floor(Math.random() * 100) + 10,
-  //       TE: Math.floor(Math.random() * 50) + 5,
-  //       status: statuses[Math.floor(Math.random() * statuses.length)],
-  //       startedat: actualStartTime,
-  //       endedat: actualEndTime,
-  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-  //       paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
-  //       averageRating: (Math.random() * 5).toFixed(1),
-  //       totalrating: Math.floor(Math.random() * 50),
-  //       review: Math.random() > 0.7 ? `Great service! Travel was smooth and on time.` : null,
-  //       specialInstructions: Math.random() > 0.8 ? 'Handle with care, fragile items' : null,
-  //       insuranceAmount: ReportController.formatAmount(Math.random() * 1000 + 100),
-  //       fuelCost: ReportController.formatAmount(Math.random() * 500 + 50),
-  //       tollCharges: ReportController.formatAmount(Math.random() * 200 + 20),
-  //       createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000),
-  //       updatedAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
-  //     });
-  //   }
-  //   return travels;
-  // }
-
-  // // Generate dummy consignment details
-  // static generateDummyConsignments() {
-  //   const consignments = [];
-  //   const categories = ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Documents', 'Automotive', 'Healthcare', 'Sports', 'Jewelry'];
-  //   const subcategories = {
-  //     'Electronics': ['Mobile', 'Laptop', 'Tablet', 'Camera', 'Headphones', 'Speaker'],
-  //     'Clothing': ['Shirts', 'Pants', 'Dresses', 'Shoes', 'Bags', 'Accessories'],
-  //     'Books': ['Novels', 'Textbooks', 'Magazines', 'Comics', 'Reference', 'Children'],
-  //     'Food': ['Snacks', 'Fruits', 'Vegetables', 'Beverages', 'Dairy', 'Frozen'],
-  //     'Furniture': ['Chairs', 'Tables', 'Beds', 'Sofas', 'Cabinets', 'Lighting'],
-  //     'Documents': ['Legal', 'Personal', 'Business', 'Educational', 'Medical', 'Financial'],
-  //     'Automotive': ['Spare Parts', 'Tools', 'Accessories', 'Lubricants', 'Tires'],
-  //     'Healthcare': ['Medicines', 'Equipment', 'Supplies', 'Devices', 'Vitamins'],
-  //     'Sports': ['Equipment', 'Clothing', 'Shoes', 'Accessories', 'Fitness'],
-  //     'Jewelry': ['Gold', 'Silver', 'Diamond', 'Pearl', 'Platinum', 'Fashion']
-  //   };
-  //   const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
-  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet', 'COD'];
-  //   const deliveryTypes = ['Standard', 'Express', 'Same Day', 'Next Day', 'Scheduled'];
-
-  //   // Generate consistent phone numbers for senders (last 10 users)
-  //   const senderPhoneNumbers = [];
-  //   for (let i = 0; i < 10; i++) {
-  //     senderPhoneNumbers.push(ReportController.generatePhoneNumber());
-  //   }
-
-  //   for (let i = 0; i < 80; i++) {
-  //     const dateOfSending = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000);
-  //     const category = categories[Math.floor(Math.random() * categories.length)];
-  //     const subcategory = subcategories[category][Math.floor(Math.random() * subcategories[category].length)];
-      
-  //     const baseAmount = Math.random() * 3000 + 200;
-  //     const insuranceAmount = Math.random() * 500 + 50;
-  //     const totalAmount = baseAmount + insuranceAmount;
-      
-  //     consignments.push({
-  //       consignmentId: `consignment_${i + 1}`,
-  //       phoneNumber: senderPhoneNumbers[i % 10], // Use consistent sender phone numbers
-  //       Description: `${category} - ${subcategory} consignment ${i + 1}`,
-  //       category: category,
-  //       subcategory: subcategory,
-  //       weight: Math.floor(Math.random() * 50) + 1,
-  //       dimensionalweight: Math.floor(Math.random() * 30) + 1,
-  //       dimensions: `${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}x${Math.floor(Math.random() * 100) + 10}`,
-  //       distance: Math.floor(Math.random() * 1000) + 50,
-  //       duration: Math.floor(Math.random() * 72) + 1,
-  //       earning: ReportController.formatAmount(baseAmount),
-  //       insuranceAmount: ReportController.formatAmount(insuranceAmount),
-  //       totalAmount: ReportController.formatAmount(totalAmount),
-  //       startinglocation: cities[Math.floor(Math.random() * cities.length)],
-  //       goinglocation: cities[Math.floor(Math.random() * cities.length)],
-  //       recievername: `Receiver ${i + 1}`,
-  //       recieverphone: ReportController.generatePhoneNumber(),
-  //       receiverEmail: `receiver${i + 1}@example.com`,
-  //       status: statuses[Math.floor(Math.random() * statuses.length)],
-  //       handleWithCare: Math.random() > 0.7,
-  //       specialRequest: Math.random() > 0.8 ? 'Handle with extra care, fragile items' : null,
-  //       deliveryType: deliveryTypes[Math.floor(Math.random() * deliveryTypes.length)],
-  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-  //       paymentStatus: ['Pending', 'Completed', 'Failed', 'Refunded'][Math.floor(Math.random() * 4)],
-  //       trackingNumber: `TN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-  //       estimatedDelivery: new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000),
-  //       actualDelivery: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-  //       pickupDate: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
-  //       pickupTime: new Date(dateOfSending.getTime() - Math.random() * 12 * 60 * 60 * 1000),
-  //       deliveryDate: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-  //       deliveryTime: Math.random() > 0.6 ? new Date(dateOfSending.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null,
-  //       signature: Math.random() > 0.6 ? `Receiver_${i + 1}_Signature` : null,
-  //       notes: Math.random() > 0.7 ? `Special handling required for ${category} items` : null,
-  //       dateOfSending: dateOfSending,
-  //       createdAt: new Date(dateOfSending.getTime() - Math.random() * 24 * 60 * 60 * 1000),
-  //       updatedAt: new Date(dateOfSending.getTime() + Math.random() * 24 * 60 * 60 * 1000)
-  //     });
-  //   }
-  //   return consignments;
-  // }
-
-  // // Generate dummy consignment history
-  // static generateDummyConsignmentHistory() {
-  //   const history = [];
-  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-  //   const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
-  //   const statuses = ['Pending', 'Accepted', 'In Progress', 'Completed', 'Delivered', 'Cancelled', 'Returned', 'Lost'];
-  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
-
-  //   for (let i = 0; i < 60; i++) {
-  //     const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-  //     const delivered = Math.random() > 0.6 ? new Date(timestamp.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-  //     const pickupTime = new Date(timestamp.getTime() + Math.random() * 2 * 60 * 60 * 1000);
-  //     const deliveryTime = delivered ? new Date(delivered.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
-      
-  //     const baseEarning = Math.random() * 2000 + 300;
-  //     const commission = baseEarning * 0.1; // 10% commission
-  //     const netEarning = baseEarning - commission;
-      
-  //     history.push({
-  //       consignmentId: `consignment_${i + 1}`,
-  //       senderPhoneNumber: ReportController.generatePhoneNumber(),
-  //       description: `Detailed history for consignment ${i + 1}`,
-  //       status: statuses[Math.floor(Math.random() * statuses.length)],
-  //       expectedEarning: ReportController.formatAmount(baseEarning),
-  //       commission: ReportController.formatAmount(commission),
-  //       netEarning: ReportController.formatAmount(netEarning),
-  //       distance: Math.floor(Math.random() * 800) + 50,
-  //       category: ['Electronics', 'Clothing', 'Books', 'Food', 'Furniture', 'Automotive', 'Healthcare'][Math.floor(Math.random() * 7)],
-  //       pickupLocation: cities[Math.floor(Math.random() * cities.length)],
-  //       deliveryLocation: cities[Math.floor(Math.random() * cities.length)],
-  //       delivered: delivered,
-  //       pickupTime: pickupTime,
-  //       deliveryTime: deliveryTime,
-  //       actualDistance: Math.floor(Math.random() * 800) + 50,
-  //       fuelCost: ReportController.formatAmount(Math.random() * 300 + 50),
-  //       tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
-  //       insuranceAmount: ReportController.formatAmount(Math.random() * 200 + 20),
-  //       totalCost: ReportController.formatAmount(Math.random() * 500 + 100),
-  //       profit: ReportController.formatAmount(Math.random() * 1000 + 200),
-  //       traveldetails: [
-  //         {
-  //           travelId: `travel_${i + 1}`,
-  //           phoneNumber: ReportController.generatePhoneNumber(),
-  //           travelMode: travelModes[Math.floor(Math.random() * travelModes.length)],
-  //           vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-  //           vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-  //           timestamp: timestamp,
-  //           startTime: pickupTime,
-  //           endTime: deliveryTime,
-  //           actualDuration: Math.floor(Math.random() * 24) + 1,
-  //           status: ['Active', 'Completed', 'Cancelled'][Math.floor(Math.random() * 3)],
-  //           rating: (Math.random() * 5).toFixed(1),
-  //           review: Math.random() > 0.7 ? 'Excellent service, on time delivery' : null
-  //         }
-  //       ]
-  //     });
-  //   }
-  //   return history;
-  // }
-
-  // // Generate dummy request for carry
-  // static generateDummyRequestForCarry() {
-  //   const requests = [];
-  //   const statuses = ['Pending', 'Accepted', 'Rejected', 'Completed', 'Cancelled', 'Expired'];
-  //   const travelModes = ['Car', 'Bike', 'Bus', 'Train', 'Flight', 'Van', 'Truck', 'Auto'];
-  //   const vehicleTypes = ['Sedan', 'SUV', 'Hatchback', 'Motorcycle', 'Scooter', 'Van', 'Truck', 'Auto Rickshaw'];
-  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
-
-  //   for (let i = 0; i < 40; i++) {
-  //     const createdAt = new Date(Date.now() - Math.random() * 20 * 24 * 60 * 60 * 1000);
-  //     const dateandtimeofdelivery = Math.random() > 0.5 ? new Date(createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000) : null;
-  //     const acceptedAt = Math.random() > 0.3 ? new Date(createdAt.getTime() + Math.random() * 2 * 60 * 60 * 1000) : null;
-      
-  //     const baseEarning = Math.random() * 1500 + 200;
-  //     const commission = baseEarning * 0.15; // 15% commission
-  //     const netEarning = baseEarning - commission;
-      
-  //     requests.push({
-  //       consignmentId: `consignment_${i + 1}`,
-  //       travelId: `travel_${i + 1}`,
-  //       travellername: `Traveler ${i + 1}`,
-  //       travelerPhone: ReportController.generatePhoneNumber(),
-  //       travelerEmail: `traveler${i + 1}@example.com`,
-  //       earning: ReportController.formatAmount(baseEarning),
-  //       commission: ReportController.formatAmount(commission),
-  //       netEarning: ReportController.formatAmount(netEarning),
-  //       travelmode: travelModes[Math.floor(Math.random() * travelModes.length)],
-  //       vehicleType: vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)],
-  //       vehicleNumber: `MH${Math.floor(Math.random() * 100).toString().padStart(2, '0')}AB${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-  //       status: statuses[Math.floor(Math.random() * statuses.length)],
-  //       dateandtimeofdelivery: dateandtimeofdelivery,
-  //       acceptedAt: acceptedAt,
-  //       paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-  //       paymentStatus: ['Pending', 'Completed', 'Failed'][Math.floor(Math.random() * 3)],
-  //       rating: (Math.random() * 5).toFixed(1),
-  //       review: Math.random() > 0.6 ? 'Great service, highly recommended!' : null,
-  //       specialInstructions: Math.random() > 0.7 ? 'Handle with care, fragile items' : null,
-  //       insuranceAmount: ReportController.formatAmount(Math.random() * 300 + 50),
-  //       fuelCost: ReportController.formatAmount(Math.random() * 200 + 30),
-  //       tollCharges: ReportController.formatAmount(Math.random() * 100 + 10),
-  //       totalCost: ReportController.formatAmount(Math.random() * 400 + 80),
-  //       profit: ReportController.formatAmount(Math.random() * 800 + 150),
-  //       createdAt: createdAt,
-  //       updatedAt: new Date(createdAt.getTime() + Math.random() * 24 * 60 * 60 * 1000)
-  //     });
-  //   }
-  //   return requests;
-  // }
-
-  // // Generate dummy earnings
-  // static generateDummyEarnings() {
-  //   const earnings = [];
-  //   const paymentMethods = ['UPI', 'Card', 'Net Banking', 'Cash', 'Wallet'];
-  //   const transactionTypes = ['Travel Payment', 'Consignment Payment', 'Bonus', 'Refund', 'Commission', 'Incentive', 'Penalty', 'Adjustment'];
-  //   const transactionStatuses = ['Completed', 'Pending', 'Failed', 'Refunded', 'Cancelled'];
-
-  //   for (let i = 0; i < 25; i++) {
-  //     const transactions = [];
-  //     const numTransactions = Math.floor(Math.random() * 15) + 5;
-      
-  //     for (let j = 0; j < numTransactions; j++) {
-  //       const transactionType = transactionTypes[Math.floor(Math.random() * transactionTypes.length)];
-  //       const amount = Math.random() * 2000 + 100;
-  //       const status = transactionStatuses[Math.floor(Math.random() * transactionStatuses.length)];
-  //       const timestamp = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-        
-  //       transactions.push({
-  //         transactionId: `TXN${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-  //         title: transactionType,
-  //         description: `${transactionType} for service ${j + 1}`,
-  //         amount: ReportController.formatAmount(amount),
-  //         status: status,
-  //         paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-  //         timestamp: timestamp,
-  //         referenceNumber: `REF${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`,
-  //         bankTransactionId: status === 'Completed' ? `BANK${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-  //         upiTransactionId: status === 'Completed' ? `UPI${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}` : null,
-  //         notes: Math.random() > 0.7 ? 'Transaction processed successfully' : null
-  //       });
-  //     }
-
-  //     const totalEarnings = transactions.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-  //     const completedTransactions = transactions.filter(t => t.status === 'Completed');
-  //     const pendingTransactions = transactions.filter(t => t.status === 'Pending');
-  //     const failedTransactions = transactions.filter(t => t.status === 'Failed');
-
-  //     earnings.push({
-  //       phoneNumber: ReportController.generatePhoneNumber(),
-  //       totalEarnings: ReportController.formatAmount(totalEarnings),
-  //       completedEarnings: ReportController.formatAmount(completedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-  //       pendingEarnings: ReportController.formatAmount(pendingTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-  //       failedEarnings: ReportController.formatAmount(failedTransactions.reduce((sum, t) => sum + parseFloat(t.amount), 0)),
-  //       totalTransactions: transactions.length,
-  //       completedTransactions: completedTransactions.length,
-  //       pendingTransactions: pendingTransactions.length,
-  //       failedTransactions: failedTransactions.length,
-  //       averageTransactionAmount: ReportController.formatAmount(totalEarnings / transactions.length),
-  //       lastTransactionDate: transactions[transactions.length - 1]?.timestamp,
-  //       transactions: transactions,
-  //       // Additional fields
-  //       monthlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 0.3 + 0.7)),
-  //       yearlyEarnings: ReportController.formatAmount(totalEarnings * (Math.random() * 8 + 4)),
-  //       commissionEarned: ReportController.formatAmount(totalEarnings * 0.1),
-  //       bonusEarned: ReportController.formatAmount(Math.random() * 1000 + 200),
-  //       penalties: ReportController.formatAmount(Math.random() * 100 + 10),
-  //       netEarnings: ReportController.formatAmount(totalEarnings + Math.random() * 1000 - Math.random() * 100)
-  //     });
-  //   }
-  //   return earnings;
-  // }
-
-  // Get Traveler Report (Enhanced) - Now shows each travel separately with dummy data
-  static async getTravelerReport(req, res) {
-    try {
-      console.log('📊 Generating Traveler Report from Consignment Consolidated Data...');
+      console.log('📊 Generating Consignment Consolidated Report...');
       
       // Get query parameters for pagination
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100;
+      const limit = parseInt(req.query.limit) || 30;
       const skip = (page - 1) * limit;
       
       console.log('📄 Pagination params:', { page, limit, skip });
 
       const Consignment = require('../model/consignment.model');
+      const ConsignmentToCarry = require('../model/ConsignmentToCarry.model');
+      const TravelDetails = require('../model/traveldetails');
+      const FareConfig = require('../model/FareConfig');
       
-      console.log('🔍 Starting traveler report from consolidated data...');
+      // Get fare configuration for T&E and Tax calculations
+      const fareConfig = await FareConfig.findOne();
+      const margin = fareConfig?.margin || 0.2;
+      const TE = fareConfig?.TE || 0;
       
-      // Debug: Check if we have any consignments at all
-      const totalConsignments = await Consignment.countDocuments();
-      console.log('📊 Total consignments in database:', totalConsignments);
+      console.log('🔍 Starting aggregation pipeline...');
       
-      if (totalConsignments === 0) {
-        console.log('⚠️ No consignments found in database');
-        return res.status(200).json({
-          data: [],
-          pagination: {
-            currentPage: page,
-            totalPages: 0,
-            totalRecords: 0,
-            recordsPerPage: limit,
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        });
-      }
-      
-      // Debug: Get a sample consignment to see the structure
-      const sampleConsignment = await Consignment.findOne();
-      console.log('🔍 Sample consignment structure:', {
-        consignmentId: sampleConsignment?.consignmentId,
-        phoneNumber: sampleConsignment?.phoneNumber,
-        earning: sampleConsignment?.earning,
-        status: sampleConsignment?.status,
-        startinglocation: sampleConsignment?.startinglocation
-      });
-      
-      // Use the same aggregation pipeline as Consignment Consolidated Report
       const report = await Consignment.aggregate([
-        // Debug: Add a stage to log initial data
-        {
-          $addFields: {
-            debug_initial: {
-              consignmentId: "$consignmentId",
-              phoneNumber: "$phoneNumber",
-              earning: "$earning",
-              earningType: { $type: "$earning" },
-              status: "$status"
-            }
-          }
-        },
-        
-        // First get carryInfo to find travelId
+        // Lookup consignment to carry information (only for accepted consignments)
         {
           $lookup: {
             from: "consignmenttocarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
+            let: { 
+              consignmentId: "$consignmentId",
+              status: "$status"
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { 
+                    $and: [
+                      { $eq: ["$consignmentId", "$$consignmentId"] },
+                      { $eq: ["$$status", "Accepted"] }
+                    ]
+                  }
+                }
+              }
+            ],
             as: "carryInfo"
           }
         },
@@ -518,240 +58,211 @@ class ReportController {
         {
           $lookup: {
             from: "traveldetails",
-            localField: "carryInfo.travelId",
-            foreignField: "travelId",
+            let: { 
+              travelId: { $arrayElemAt: ["$carryInfo.travelId", 0] }
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$travelId", "$$travelId"] }
+                }
+              }
+            ],
             as: "travelDetails"
           }
         },
         
-        // Debug: Log after travel details lookup
-        {
-          $addFields: {
-            debug_travelDetails: {
-              travelDetailsCount: { $size: "$travelDetails" },
-              travelDetailsSample: { $arrayElemAt: ["$travelDetails", 0] },
-              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
-            }
-          }
-        },
-        
-        // Lookup traveler profiles
-        {
-          $lookup: {
-            from: "profiles",
-            localField: "travelDetails.phoneNumber",
-            foreignField: "phoneNumber",
-            as: "travelerProfiles"
-          }
-        },
-        
-        // Lookup consignment history
-        {
-          $lookup: {
-            from: "consignmentrequesthistories",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "consignmentHistory"
-          }
-        },
-        
-        // Debug: Log after consignment history lookup
-        {
-          $addFields: {
-            debug_consignmentHistory: {
-              historyCount: { $size: "$consignmentHistory" },
-              historySample: { $arrayElemAt: ["$consignmentHistory", 0] }
-            }
-          }
-        },
-        
-        // Lookup rider request
-        {
-          $lookup: {
-            from: "requestforcarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "riderRequest"
-          }
-        },
-        
-        // Lookup carry info
-        {
-          $lookup: {
-            from: "consignmenttocarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "carryInfo"
-          }
-        },
-        
-        // Debug: Log after all lookups
-        {
-          $addFields: {
-            debug_allLookups: {
-              riderRequestCount: { $size: "$riderRequest" },
-              carryInfoCount: { $size: "$carryInfo" },
-              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
-            }
-          }
-        },
-        
-        // Filter: Only include consignments that have valid travel information
-        // This ensures we only show consignments that are actually being carried by travelers
-        {
-          $match: {
-            $and: [
-              { "carryInfo.0": { $exists: true } },           // Must have carry info
-              { "carryInfo.0.travelId": { $exists: true } }   // Must have a valid travelId
-            ]
-          }
-        },
-        
-        // Project traveler-specific fields (each row is a unique travel)
+        // Project the final report fields with exact field names
         {
           $project: {
-            // Debug fields
-            debug_initial: 1,
-            debug_travelDetails: 1,
-            debug_consignmentHistory: 1,
-            debug_allLookups: 1,
+            // 1. Consignment ID
+            "Consignment ID": "$consignmentId",
             
-            "Traveler Id": {
+            // 2. Consignment Status
+            "Consignment Status": "$status",
+            
+            // 3. Sender ID
+            "Sender ID": "$_id",
+            
+            // 4. Sender Name - Use username from consignment model
+            "Sender Name": {
+              $ifNull: ["$username", "Unknown"]
+            },
+            
+            // 5. Sender Mobile No
+            "Sender Mobile No": "$phoneNumber",
+            
+            // 6. Sender Address
+            "Sender Address": {
               $ifNull: [
-                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
-                { $arrayElemAt: ["$travelDetails.userId", 0] },
-                "N/A"
+                "$fullstartinglocation",
+                "$startinglocation"
               ]
             },
-            "Name": {
+            
+            // 7. Total Amount Sender
+            "Total Amount Sender": {
               $ifNull: [
-                { $arrayElemAt: ["$travelDetails.username", 0] },
-                { $arrayElemAt: ["$travelerProfiles.name", 0] },
-                "Unknown"
+                { $arrayElemAt: ["$carryInfo.earning.senderTotalPay", 0] },
+                0
               ]
             },
-            "Phone No": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
-                "N/A"
-              ]
-            },
-            "Address": {
-              $ifNull: [
-                {
-                  $cond: {
-                    if: {
-                      $and: [
-                        { $ne: [{ $arrayElemAt: ["$travelDetails.Leavinglocation", 0] }, null] },
-                        { $ne: [{ $arrayElemAt: ["$travelDetails.Goinglocation", 0] }, null] }
-                      ]
-                    },
-                    then: {
-                      $concat: [
-                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.Leavinglocation", 0] }, ""] },
-                        " to ",
-                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.Goinglocation", 0] }, ""] }
-                      ]
-                    },
-                    else: {
-                      $ifNull: [
-                        {
-                          $concat: [
-                            { $ifNull: [{ $arrayElemAt: ["$carryInfo.startinglocation", 0] }, ""] },
-                            " to ",
-                            { $ifNull: [{ $arrayElemAt: ["$carryInfo.droplocation", 0] }, ""] }
-                          ]
-                        },
-                        "N/A"
-                      ]
-                    }
-                  }
-                },
-                "N/A"
-              ]
-            },
-            "State": "N/A", // Will be populated from profile lookup if needed
-            "No of Consignment": 1, // Each row represents one consignment
-            "Total Amount": {
-              $ifNull: [
-                {
-                  $cond: {
-                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
-                    then: 0, // For now, use 0 for string values (will be processed in JavaScript)
-                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
-                  }
-                },
-                {
-                  $ifNull: [
-                    {
-                      $cond: {
-                        if: { $eq: [{ $type: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }, "object"] },
-                        then: {
-                          $let: {
-                            vars: { earning: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } },
-                            in: "$$earning.totalFare"
-                          }
-                        },
-                        else: { $toDouble: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }
-                      }
-                    },
-                    { $ifNull: [{ $toDouble: "$earning" }, 0] }
-                  ]
-                }
-              ]
-            },
-            "Traveler's Consignment": "$consignmentId",
-            "Status of Consignment": {
-              $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"]
-            },
-            "Payment": {
+            
+            // 8. Payment Status - Based on consignment status
+            "Payment Status": {
               $cond: {
                 if: { 
-                  $gt: [
-                    {
-                      $ifNull: [
-                        {
-                          $cond: {
-                            if: { $eq: [{ $type: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }, "object"] },
-                            then: {
-                              $let: {
-                                vars: { earning: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } },
-                                in: "$$earning.totalFare"
-                              }
-                            },
-                            else: { $toDouble: { $arrayElemAt: ["$travelDetails.payableAmount", 0] } }
-                          }
-                        },
-                        0
-                      ]
-                    },
-                    0
+                  $in: [
+                    "$status",
+                    ["Delivered", "Completed", "Collected"]
                   ]
                 },
-                then: {
-                  $cond: {
-                    if: { 
-                      $in: [
-                        { $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"] },
-                        ["Completed", "Delivered", "Accepted", "In Progress"]
-                      ]
-                    },
-                    then: "Paid",
-                    else: "Pending"
-                  }
-                },
+                then: "Paid",
                 else: "Pending"
               }
             },
             
-            // Additional fields for API compatibility
-            travelId: { $arrayElemAt: ["$travelDetails.travelId", 0] },
-            travelMode: { $arrayElemAt: ["$travelDetails.travelMode", 0] },
-            travelDate: { $arrayElemAt: ["$travelDetails.travelDate", 0] },
-            status: { $ifNull: [{ $arrayElemAt: ["$travelDetails.status", 0] }, "$status"] },
-            createdAt: { $arrayElemAt: ["$travelDetails.createdAt", 0] },
-            updatedAt: { $arrayElemAt: ["$travelDetails.updatedAt", 0] },
-            consignmentId: 1
+            // 9. Traveler Id
+            "Traveler Id": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails._id", 0] },
+                "N/A"
+              ]
+            },
+            
+            // 10. Traveler Acceptance Date
+            "Traveler Acceptance Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.createdAt", 0] },
+                null
+              ]
+            },
+            
+            // 11. Traveler Name - Use username from traveldetails model
+            "Traveler Name": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.username", 0] },
+                "N/A"
+              ]
+            },
+            
+            // 12. Traveler Mobile No
+            "Traveler Mobile No": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
+                "N/A"
+              ]
+            },
+            
+            // 13. Traveler Address
+            "Traveler Address": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.Leavinglocation", 0] },
+                "N/A"
+              ]
+            },
+            
+            // 14. Amount to be paid to Traveler
+            "Amount to be paid to Traveler": {
+              $ifNull: [
+                { $arrayElemAt: ["$carryInfo.earning.totalFare", 0] },
+                0
+              ]
+            },
+            
+            // 15. Traveler Payment Status - Based on carryInfo status
+            "Traveler Payment Status": {
+              $cond: {
+                if: { 
+                  $in: [
+                    { $arrayElemAt: ["$carryInfo.status", 0] },
+                    ["Delivered", "Completed"]
+                  ]
+                },
+                then: "Paid",
+                else: {
+                  $cond: {
+                    if: { 
+                      $eq: [
+                        { $arrayElemAt: ["$carryInfo.status", 0] },
+                        "In Transit"
+                      ]
+                    },
+                    then: "Partial",
+                    else: "Pending"
+                  }
+                }
+              }
+            },
+            
+            // 16. Travel Mode
+            "Travel Mode": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.travelMode", 0] },
+                "N/A"
+              ]
+            },
+            
+            // 17. Travel Start Date
+            "Travel Start Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedStartTime", 0] },
+                { $arrayElemAt: ["$travelDetails.travelDate", 0] },
+                null
+              ]
+            },
+            
+            // 18. Travel End Date
+            "Travel End Date": {
+              $ifNull: [
+                { $arrayElemAt: ["$travelDetails.expectedEndTime", 0] },
+                null
+              ]
+            },
+            
+            // 19. Recipient Name
+            "Recipient Name": "$recievername",
+            
+            // 20. Recipient Address
+            "Recipient Address": {
+              $ifNull: [
+                "$fullgoinglocation",
+                "$goinglocation"
+              ]
+            },
+            
+            // 21. Recipient Phone no
+            "Recipient Phone no": "$recieverphone",
+            
+            // 22. Received Date
+            "Received Date": {
+              $cond: {
+                if: { 
+                  $eq: [
+                    { $arrayElemAt: ["$carryInfo.status", 0] },
+                    "Delivered"
+                  ]
+                },
+                then: { $arrayElemAt: ["$carryInfo.updatedAt", 0] },
+                else: null
+              }
+            },
+            
+            // 23. T&E Amount
+            "T&E Amount": { $literal: TE },
+            
+            // 24. Tax Component
+            "Tax Component": {
+              $multiply: [
+                {
+                  $ifNull: [
+                    { $arrayElemAt: ["$carryInfo.earning.senderTotalPay", 0] },
+                    0
+                  ]
+                },
+                margin
+              ]
+            }
           }
         },
         
@@ -760,73 +271,69 @@ class ReportController {
         { $limit: limit }
       ]);
 
-      // Debug: Log the last few results
-      console.log('🔍 Last 4 results from aggregation:');
-      const lastResults = report.slice(-4);
-      lastResults.forEach((item, index) => {
-        console.log(`📊 Result ${report.length - 3 + index}:`, {
-          consignmentId: item.consignmentId,
-          travelerId: item["Traveler Id"],
-          name: item["Name"],
-          phoneNo: item["Phone No"],
-          totalAmount: item["Total Amount"],
-          status: item["Status of Consignment"],
-          debug_initial: item.debug_initial,
-          debug_travelDetails: item.debug_travelDetails,
-          debug_consignmentHistory: item.debug_consignmentHistory,
-          debug_allLookups: item.debug_allLookups
-        });
-      });
-
-      // Process the report to extract earning values from strings (similar to Sender Report)
+      // Process the results to format dates and handle null values
       const processedReport = report.map(item => {
-        let totalAmount = item["Total Amount"];
-
-        // If Total Amount is 0 and we have carryInfo data, try to parse the earning string
-        if (totalAmount === 0 && item.debug_allLookups?.carryInfoSample?.earning) {
+        // Helper function to format dates to ISO format
+        const formatDate = (dateValue) => {
+          if (!dateValue || dateValue === 'N/A') return null;
           try {
-            const earningStr = item.debug_allLookups.carryInfoSample.earning;
-            if (typeof earningStr === 'string' && earningStr.includes('totalFare:')) {
-              // Extract totalFare using regex (traveler gets totalFare, not senderTotalPay)
-              const match = earningStr.match(/totalFare:\s*([0-9.]+)/);
-              if (match && match[1]) {
-                totalAmount = parseFloat(match[1]);
-                console.log(`✅ Extracted totalFare: ${totalAmount} from string for traveler`);
-              }
-            }
+            const date = new Date(dateValue);
+            if (isNaN(date.getTime())) return null;
+            return date.toISOString();
           } catch (error) {
-            console.log(`⚠️ Failed to parse earning string: ${error.message}`);
+            return null;
           }
-        }
+        };
+
+        // Helper function to format amounts
+        const formatAmount = (amount) => {
+          if (amount === null || amount === undefined || amount === 'N/A') return 0;
+          return parseFloat(amount) || 0;
+        };
 
         return {
-          ...item,
-          "Total Amount": totalAmount,
-          // Remove debug fields for cleaner output
-          debug_initial: undefined,
-          debug_travelDetails: undefined,
-          debug_consignmentHistory: undefined,
-          debug_allLookups: undefined
+          "Consignment ID": item["Consignment ID"] || "N/A",
+          "Consignment Status": item["Consignment Status"] || "Pending",
+          "Sender ID": item["Sender ID"]?.toString() || "N/A",
+          "Sender Name": item["Sender Name"] || "Unknown",
+          "Sender Mobile No": item["Sender Mobile No"] || "N/A",
+          "Sender Address": item["Sender Address"] || "N/A",
+          "Total Amount Sender": formatAmount(item["Total Amount Sender"]),
+          "Payment Status": item["Payment Status"] || "Pending",
+          "Traveler Id": item["Traveler Id"]?.toString() || "N/A",
+          "Traveler Acceptance Date": formatDate(item["Traveler Acceptance Date"]),
+          "Traveler Name": item["Traveler Name"] || "N/A",
+          "Traveler Mobile No": item["Traveler Mobile No"] || "N/A",
+          "Traveler Address": item["Traveler Address"] || "N/A",
+          "Amount to be paid to Traveler": formatAmount(item["Amount to be paid to Traveler"]),
+          "Traveler Payment Status": item["Traveler Payment Status"] || "Pending",
+          "Travel Mode": item["Travel Mode"] || "N/A",
+          "Travel Start Date": formatDate(item["Travel Start Date"]),
+          "Travel End Date": formatDate(item["Travel End Date"]),
+          "Recipient Name": item["Recipient Name"] || "N/A",
+          "Recipient Address": item["Recipient Address"] || "N/A",
+          "Recipient Phone no": item["Recipient Phone no"] || "N/A",
+          "Received Date": formatDate(item["Received Date"]),
+          "T&E Amount": formatAmount(item["T&E Amount"]),
+          "Tax Component": formatAmount(item["Tax Component"])
         };
       });
 
       // Get total count for pagination
       const totalCount = await Consignment.countDocuments();
 
-      console.log(`✅ Traveler report generated with ${processedReport.length} records (page ${page})`);
+      console.log(`✅ Consignment consolidated report generated with ${processedReport.length} records (page ${page})`);
       res.status(200).json({
         data: processedReport,
         pagination: {
-          currentPage: page,
           totalPages: Math.ceil(totalCount / limit),
           totalRecords: totalCount,
           recordsPerPage: limit,
-          hasNextPage: page < Math.ceil(totalCount / limit),
-          hasPreviousPage: page > 1
+          currentPage: page
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching traveler report:', error);
+      console.error('❌ Error fetching consignment consolidated report:', error);
       res.status(500).json({ 
         error: 'Internal server error', 
         message: error.message,
@@ -835,265 +342,205 @@ class ReportController {
     }
   }
 
-  // Get Sender Report (Enhanced) - Now shows each consignment separately with dummy data
+  // Get Sender Report
   static async getSenderReport(req, res) {
     try {
-      console.log('📦 Generating Sender Report from Consignment Consolidated Data...');
+      console.log('📊 Generating Sender Report...');
       
       // Get query parameters for pagination
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100;
+      const limit = parseInt(req.query.limit) || 30;
       const skip = (page - 1) * limit;
       
       console.log('📄 Pagination params:', { page, limit, skip });
 
+      const User = require('../model/Profile');
       const Consignment = require('../model/consignment.model');
+      const ConsignmentToCarry = require('../model/ConsignmentToCarry.model');
       
-      console.log('🔍 Starting sender report from consolidated data...');
+      console.log('🔍 Starting sender report aggregation...');
       
-      // Debug: Check if we have any consignments at all
-      const totalConsignments = await Consignment.countDocuments();
-      console.log('📊 Total consignments in database:', totalConsignments);
-      
-      if (totalConsignments === 0) {
-        console.log('⚠️ No consignments found in database');
-        return res.status(200).json({
-          data: [],
-          pagination: {
-            currentPage: page,
-            totalPages: 0,
-            totalRecords: 0,
-            recordsPerPage: limit,
-            hasNextPage: false,
-            hasPreviousPage: false
-          }
-        });
-      }
-      
-      // Debug: Get a sample consignment to see the structure
-      const sampleConsignment = await Consignment.findOne();
-      console.log('🔍 Sample consignment structure:', {
-        consignmentId: sampleConsignment?.consignmentId,
-        phoneNumber: sampleConsignment?.phoneNumber,
-        earning: sampleConsignment?.earning,
-        status: sampleConsignment?.status,
-        startinglocation: sampleConsignment?.startinglocation,
-        senderFirstName: sampleConsignment?.senderFirstName,
-        senderLastName: sampleConsignment?.senderLastName
-      });
-      
-      // Use the same aggregation pipeline as Consignment Consolidated Report
-      const report = await Consignment.aggregate([
-        // Debug: Add a stage to log initial data
-        {
-          $addFields: {
-            debug_initial: {
-              consignmentId: "$consignmentId",
-              phoneNumber: "$phoneNumber",
-              earning: "$earning",
-              earningType: { $type: "$earning" },
-              status: "$status"
-            }
-          }
-        },
-        
-        // Lookup travel details
+      // First, get all users who have created consignments
+      const senderReport = await User.aggregate([
+        // Lookup consignments created by this user
         {
           $lookup: {
-            from: "traveldetails",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "travelDetails"
+            from: "consignments",
+            localField: "phoneNumber",
+            foreignField: "phoneNumber",
+            as: "consignments"
           }
         },
         
-        // Debug: Log after travel details lookup
+        // Only include users who have consignments
         {
-          $addFields: {
-            debug_travelDetails: {
-              travelDetailsCount: { $size: "$travelDetails" },
-              travelDetailsSample: { $arrayElemAt: ["$travelDetails", 0] }
-            }
+          $match: {
+            "consignments.0": { $exists: true }
           }
         },
         
-        // Lookup consignment history
-        {
-          $lookup: {
-            from: "consignmentrequesthistories",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "consignmentHistory"
-          }
-        },
-        
-        // Debug: Log after consignment history lookup
-        {
-          $addFields: {
-            debug_consignmentHistory: {
-              historyCount: { $size: "$consignmentHistory" },
-              historySample: { $arrayElemAt: ["$consignmentHistory", 0] }
-            }
-          }
-        },
-        
-        // Lookup rider request
-        {
-          $lookup: {
-            from: "requestforcarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "riderRequest"
-          }
-        },
-        
-        // Lookup carry info
+        // Lookup ConsignmentToCarry for earnings calculation
         {
           $lookup: {
             from: "consignmenttocarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
+            let: { userPhone: "$phoneNumber" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$senderphone", "$$userPhone"] }
+                }
+              }
+            ],
             as: "carryInfo"
           }
         },
         
-        // Debug: Log after all lookups
+        // Calculate summary statistics
         {
           $addFields: {
-            debug_allLookups: {
-              riderRequestCount: { $size: "$riderRequest" },
-              carryInfoCount: { $size: "$carryInfo" },
-              carryInfoSample: { $arrayElemAt: ["$carryInfo", 0] }
+            numberOfConsignments: { $size: "$consignments" },
+            totalAmountPaid: {
+              $sum: {
+                $map: {
+                  input: "$consignments",
+                  as: "consignment",
+                  in: {
+                    $cond: {
+                      if: { $eq: ["$$consignment.status", "Accepted"] },
+                      then: {
+                        $let: {
+                          vars: {
+                            carryInfo: {
+                              $arrayElemAt: [
+                                {
+                                  $filter: {
+                                    input: "$carryInfo",
+                                    cond: { $eq: ["$$this.consignmentId", "$$consignment.consignmentId"] }
+                                  }
+                                },
+                                0
+                              ]
+                            }
+                          },
+                          in: { $ifNull: ["$$carryInfo.earning.senderTotalPay", 0] }
+                        }
+                      },
+                      else: 0
+                    }
+                  }
+                }
+              }
+            },
+            // Calculate earnings from accepted consignments
+            totalEarnings: {
+              $sum: {
+                $map: {
+                  input: "$carryInfo",
+                  as: "carry",
+                  in: { $ifNull: ["$$carry.earning.senderTotalPay", 0] }
+                }
+              }
             }
           }
         },
         
-
-        
-        // Project sender-specific fields
+        // Add consignment details for expandable view
         {
-          $project: {
-            // Debug fields
-            debug_initial: 1,
-            debug_travelDetails: 1,
-            debug_consignmentHistory: 1,
-            debug_allLookups: 1,
-            
-            "Sender Id": {
-              $ifNull: ["$phoneNumber", "N/A"]
-            },
-            "Name": {
-              $ifNull: [
-                { $arrayElemAt: ["$consignmentHistory.senderName", 0] },
-                "Unknown"
-              ]
-            },
-            "Phone No": "$phoneNumber",
-            "Address": "$startinglocation",
-            "State": "N/A", // Will be populated from profile lookup if needed
-            "No of Consignment": 1, // Each row represents one consignment
-            "Total Amount": {
-              $ifNull: [
-                {
-                  $cond: {
-                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
-                    then: 0, // For now, use 0 for string values to avoid parsing issues
-                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
-                  }
-                },
-                {
-                  $ifNull: [
-                    { $toDouble: "$earning" },
-                    0
-                  ]
-                }
-              ]
-            },
-            "Sender's Consignment": "$consignmentId",
-            "Status of Consignment": "$status",
-            "Payment": {
-              $cond: {
-                if: { 
-                  $gt: [
-                    {
-                      $ifNull: [
-                        {
-                          $cond: {
-                            if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
-                            then: 0, // For now, use 0 for string values to avoid parsing issues
-                            else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
-                          }
-                        },
-                        {
-                          $ifNull: [
-                            { $toDouble: "$earning" },
+          $addFields: {
+            consignmentDetails: {
+              $map: {
+                input: "$consignments",
+                as: "consignment",
+                in: {
+                  consignmentId: "$$consignment.consignmentId",
+                  startingLocation: {
+                    $ifNull: ["$$consignment.fullstartinglocation", "$$consignment.startinglocation"]
+                  },
+                  endingLocation: {
+                    $ifNull: ["$$consignment.fullgoinglocation", "$$consignment.goinglocation"]
+                  },
+                  paymentStatus: "$$consignment.paymentStatus",
+                  consignmentStatus: "$$consignment.status",
+                  dateOfSending: "$$consignment.dateOfSending",
+                  weight: "$$consignment.weight",
+                  description: "$$consignment.Description",
+                  receiverName: "$$consignment.recievername",
+                  receiverPhone: "$$consignment.recieverphone",
+                  earnings: {
+                    $let: {
+                      vars: {
+                        carryInfo: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$carryInfo",
+                                cond: { $eq: ["$$this.consignmentId", "$$consignment.consignmentId"] }
+                              }
+                            },
                             0
                           ]
                         }
-                      ]
-                    },
-                    0
-                  ]
-                },
+                      },
+                      in: { $ifNull: ["$$carryInfo.earning.senderTotalPay", 0] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        // Project the final report fields
+        {
+          $project: {
+            // Basic sender information
+            "Sender Id": "$_id",
+            "Name": {
+              $concat: [
+                { $ifNull: ["$firstName", ""] },
+                " ",
+                { $ifNull: ["$lastName", ""] }
+              ]
+            },
+            "Phone No": "$phoneNumber",
+            "Address": {
+              $ifNull: [
+                { $arrayElemAt: ["$consignments.fullstartinglocation", 0] },
+                { $arrayElemAt: ["$consignments.startinglocation", 0] },
+                "N/A"
+              ]
+            },
+            "State": "N/A", // This would need to be extracted from address if available
+            
+            // Summary statistics
+            "No of Consignment": "$numberOfConsignments",
+            "Total Amount": "$totalAmountPaid",
+            
+            // Detailed consignment information (for expandable view)
+            "Sender's Consignment": "$consignmentDetails",
+            
+            // Payment status summary
+            "Status of Consignment": {
+              $cond: {
+                if: { $gt: ["$numberOfConsignments", 0] },
                 then: {
                   $cond: {
-                    if: { $in: ["$status", ["Completed", "Delivered", "Accepted", "In Progress"]] },
-                    then: "Paid",
-                    else: "Pending"
+                    if: { $eq: ["$totalAmountPaid", 0] },
+                    then: "Pending Payment",
+                    else: "Payment Completed"
                   }
                 },
-                else: "Pending"
+                else: "No Consignments"
               }
             },
             
-            // Additional fields for API compatibility
-            consignmentId: 1,
-            consignmentStatus: 1,
-            senderId: "$phoneNumber",
-            senderName: {
-              $ifNull: [
-                { $arrayElemAt: ["$consignmentHistory.senderName", 0] },
-                "Unknown"
-              ]
-            },
-            senderMobileNo: 1,
-            senderEmail: "N/A",
-            senderAddress: 1,
-            description: 1,
-            category: 1,
-            subcategory: 1,
-            weight: 1,
-            dimensionalweight: 1,
-            dimensions: 1,
-            distance: 1,
-            duration: 1,
-            handleWithCare: 1,
-            specialRequest: 1,
-            recepientName: 1,
-            recepientAddress: 1,
-            recepientPhoneNo: 1,
-            totalAmountSender: {
-              $ifNull: [
-                {
-                  $cond: {
-                    if: { $eq: [{ $type: { $arrayElemAt: ["$carryInfo.earning", 0] } }, "string"] },
-                    then: 0, // For now, use 0 for string values to avoid parsing issues
-                    else: { $toDouble: { $arrayElemAt: ["$carryInfo.earning", 0] } }
-                  }
-                },
-                {
-                  $ifNull: [
-                    { $toDouble: "$earning" },
-                    0
-                  ]
-                }
-              ]
-            },
-            dateOfSending: 1,
-            createdAt: 1,
-            updatedAt: 1,
-            senderCreatedAt: 1,
-            senderLastUpdated: 1
+            "Payment": {
+              $cond: {
+                if: { $gt: ["$totalAmountPaid", 0] },
+                then: "Paid",
+                else: "Pending"
+              }
+            }
           }
         },
         
@@ -1102,65 +549,56 @@ class ReportController {
         { $limit: limit }
       ]);
 
-      // Process the results to extract earning values from JSON strings
-      const processedReport = report.map(item => {
-        let totalAmount = item["Total Amount"];
-        
-        // If Total Amount is 0 and we have carryInfo data, try to parse the earning string
-        if (totalAmount === 0 && item.debug_allLookups?.carryInfoSample?.earning) {
-          try {
-            const earningStr = item.debug_allLookups.carryInfoSample.earning;
-            if (typeof earningStr === 'string' && earningStr.includes('senderTotalPay:')) {
-              // Extract senderTotalPay using regex
-              const match = earningStr.match(/senderTotalPay:\s*([0-9.]+)/);
-              if (match && match[1]) {
-                totalAmount = parseFloat(match[1]);
-                console.log(`✅ Extracted senderTotalPay: ${totalAmount} from string`);
-              }
-            }
-          } catch (error) {
-            console.log(`⚠️ Failed to parse earning string: ${error.message}`);
-          }
-        }
-        
+      // Process the results to format data properly
+      const processedReport = senderReport.map(item => {
+        // Helper function to format amounts
+        const formatAmount = (amount) => {
+          if (amount === null || amount === undefined || amount === 'N/A') return 0;
+          return parseFloat(amount) || 0;
+        };
+
+        // Process consignment details
+        const processedConsignments = item["Sender's Consignment"].map(consignment => ({
+          consignmentId: consignment.consignmentId || "N/A",
+          startingLocation: consignment.startingLocation || "N/A",
+          endingLocation: consignment.endingLocation || "N/A",
+          paymentStatus: consignment.paymentStatus || "pending",
+          consignmentStatus: consignment.consignmentStatus || "Pending",
+          dateOfSending: consignment.dateOfSending ? new Date(consignment.dateOfSending).toISOString() : null,
+          weight: consignment.weight || "N/A",
+          description: consignment.description || "N/A",
+          receiverName: consignment.receiverName || "N/A",
+          receiverPhone: consignment.receiverPhone || "N/A",
+          earnings: formatAmount(consignment.earnings)
+        }));
+
         return {
-          ...item,
-          "Total Amount": totalAmount,
-          // Remove debug fields for cleaner output
-          debug_initial: undefined,
-          debug_travelDetails: undefined,
-          debug_consignmentHistory: undefined,
-          debug_allLookups: undefined
+          "Sender Id": item["Sender Id"]?.toString() || "N/A",
+          "Name": item["Name"]?.trim() || "Unknown",
+          "Phone No": item["Phone No"] || "N/A",
+          "Address": item["Address"] || "N/A",
+          "State": item["State"] || "N/A",
+          "No of Consignment": item["No of Consignment"] || 0,
+          "Total Amount": formatAmount(item["Total Amount"]),
+          "Sender's Consignment": processedConsignments,
+          "Status of Consignment": item["Status of Consignment"] || "No Consignments",
+          "Payment": item["Payment"] || "Pending"
         };
       });
 
-      // Debug: Log the last few processed results
-      console.log('🔍 Last 4 processed results:');
-      const lastProcessedResults = processedReport.slice(-4);
-      lastProcessedResults.forEach((item, index) => {
-        console.log(`📊 Result ${processedReport.length - 3 + index}:`, {
-          consignmentId: item.consignmentId,
-          senderId: item["Sender Id"],
-          name: item["Name"],
-          phoneNo: item["Phone No"],
-          totalAmount: item["Total Amount"],
-          status: item["Status of Consignment"]
-        });
-      });
-
       // Get total count for pagination
-      const totalCount = await Consignment.countDocuments();
+      const totalCount = await User.countDocuments({
+        phoneNumber: { $in: await Consignment.distinct("phoneNumber") }
+      });
 
       console.log(`✅ Sender report generated with ${processedReport.length} records (page ${page})`);
       res.status(200).json({
         data: processedReport,
         pagination: {
-          currentPage: page,
           totalPages: Math.ceil(totalCount / limit),
           totalRecords: totalCount,
           recordsPerPage: limit,
-          hasNextPage: page < Math.ceil(totalCount / limit),
-          hasPreviousPage: page > 1
+          currentPage: page
         }
       });
     } catch (error) {
@@ -1173,25 +611,29 @@ class ReportController {
     }
   }
 
-  // Get Consignment Consolidated Report (Enhanced) - Now uses dummy data
-  static async getConsignmentConsolidatedReport(req, res) {
+  // Get Sender Consignment Details (for expandable view)
+  static async getSenderConsignmentDetails(req, res) {
     try {
-      console.log('📊 Generating Enhanced Consignment Consolidated Report with MongoDB Aggregation...');
+      const { senderPhone } = req.params;
       
-      // Get query parameters for pagination
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100; // Limit to 100 records per request
-      const skip = (page - 1) * limit;
-      
-      // Get fare configuration
-      const FareConfig = require('../model/FareConfig');
-      const fareConfig = await FareConfig.findOne();
-      const margin = fareConfig?.margin || 0.2;
-      const TE = fareConfig?.TE || 0;
+      if (!senderPhone) {
+        return res.status(400).json({ error: 'Sender phone number is required' });
+      }
+
+      console.log(`🔍 Fetching consignment details for sender: ${senderPhone}`);
 
       const Consignment = require('../model/consignment.model');
-      
-      const report = await Consignment.aggregate([
+      const ConsignmentToCarry = require('../model/ConsignmentToCarry.model');
+
+      const consignmentDetails = await Consignment.aggregate([
+        // Match consignments by sender phone number
+        {
+          $match: {
+            phoneNumber: senderPhone
+          }
+        },
+        
+        // Lookup ConsignmentToCarry for earnings
         {
           $lookup: {
             from: "consignmenttocarries",
@@ -1200,191 +642,68 @@ class ReportController {
             as: "carryInfo"
           }
         },
-
-        // Join with TravelDetails (only if carryInfo exists)
-        {
-          $lookup: {
-            from: "traveldetails",
-            let: { travelId: { $ifNull: [{ $arrayElemAt: ["$carryInfo.travelId", 0] }, null] } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$travelId", "$$travelId"] }
-                }
-              }
-            ],
-            as: "travelDetails"
-          }
-        },
-
-        // Join with ConsignmentRequestHistory
-        {
-          $lookup: {
-            from: "consignmentrequesthistories",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "consignmentHistory"
-          }
-        },
-
-        // Project fields for Excel report with proper fallbacks
+        
+        // Project the detailed information
         {
           $project: {
-            _id: 0,
-            "Consignment ID": "$consignmentId",
-            "Consignment Status": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.status", 0] },
-                "$status"
-              ]
+            consignmentId: 1,
+            startingLocation: {
+              $ifNull: ["$fullstartinglocation", "$startinglocation"]
             },
-            "Sender ID": "$phoneNumber",
-            "Sender Name": "$username",
-            "Sender Mobile No": "$phoneNumber",
-            "Sender Address": "$startinglocation",
-            "Total Amount Sender": {
+            endingLocation: {
+              $ifNull: ["$fullgoinglocation", "$goinglocation"]
+            },
+            paymentStatus: 1,
+            consignmentStatus: 1,
+            dateOfSending: 1,
+            weight: 1,
+            description: "$Description",
+            receiverName: "$recievername",
+            receiverPhone: "$recieverphone",
+            earnings: {
               $ifNull: [
                 { $arrayElemAt: ["$carryInfo.earning.senderTotalPay", 0] },
-                "$earning"
+                0
               ]
             },
-            "Payment Status": {
-              $cond: {
-                if: { 
-                  $in: [
-                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                    ["Delivered", "Completed", "Collected"]
-                  ]
-                },
-                then: "Paid",
-                else: "Pending"
-              }
-            },
-            "Traveler Id": {
+            carryStatus: {
               $ifNull: [
-                { $arrayElemAt: ["$travelDetails.travelId", 0] },
+                { $arrayElemAt: ["$carryInfo.status", 0] },
                 "N/A"
-              ]
-            },
-            "Traveler Acceptance Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.createdAt", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Name": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.username", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Mobile No": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Address": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.Leavinglocation", 0] },
-                "N/A"
-              ]
-            },
-            "Amount to be paid to Traveler": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.earning.totalFare", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Payment Status": {
-              $cond: {
-                if: { 
-                  $in: [
-                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                    ["Delivered", "Completed"]
-                  ]
-                },
-                then: "Paid",
-                else: {
-                  $cond: {
-                    if: { 
-                      $eq: [
-                        { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                        "In Transit"
-                      ]
-                    },
-                    then: "Partial",
-                    else: "Pending"
-                  }
-                }
-              }
-            },
-            "Travel Mode": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.travelMode", 0] },
-                "N/A"
-              ]
-            },
-            "Travel Start Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.expectedStartTime", 0] },
-                "N/A"
-              ]
-            },
-            "Travel End Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.expectedEndTime", 0] },
-                "N/A"
-              ]
-            },
-            "Recipient Name": "$recievername",
-            "Recipient Address": "$goinglocation",
-            "Recipient Phone no": "$recieverphone",
-            "Received Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.dateandtimeofdelivery", 0] },
-                "$dateOfSending"
-              ]
-            },
-            "T&E Amount": { $literal: TE },
-            "Tax Component": {
-              $multiply: [
-                // {
-                //   $toDouble: {
-                //     $ifNull: [
-                //       { $arrayElemAt: ["$carryInfo.earning.senderTotalPay", 0] },
-                //       "$earning"
-                //     ]
-                //   }
-                // },
-                margin
               ]
             }
           }
         },
         
-                // Add pagination
-        { $skip: skip },
-        { $limit: limit }
+        // Sort by date of sending (newest first)
+        {
+          $sort: { dateOfSending: -1 }
+        }
       ]);
 
-      // Get total count for pagination
-      const totalCount = await Consignment.countDocuments();
+      // Process the results
+      const processedDetails = consignmentDetails.map(item => ({
+        consignmentId: item.consignmentId || "N/A",
+        startingLocation: item.startingLocation || "N/A",
+        endingLocation: item.endingLocation || "N/A",
+        paymentStatus: item.paymentStatus || "pending",
+        consignmentStatus: item.consignmentStatus || "Pending",
+        dateOfSending: item.dateOfSending ? new Date(item.dateOfSending).toISOString() : null,
+        weight: item.weight || "N/A",
+        description: item.description || "N/A",
+        receiverName: item.receiverName || "N/A",
+        receiverPhone: item.receiverPhone || "N/A",
+        earnings: parseFloat(item.earnings) || 0,
+        carryStatus: item.carryStatus || "N/A"
+      }));
 
-      console.log(`✅ Aggregation report generated with ${report.length} records (page ${page})`);
+      console.log(`✅ Found ${processedDetails.length} consignments for sender ${senderPhone}`);
       res.status(200).json({
-        data: report,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(totalCount / limit),
-          totalRecords: totalCount,
-          recordsPerPage: limit,
-          hasNextPage: page < Math.ceil(totalCount / limit),
-          hasPreviousPage: page > 1
-        }
+        data: processedDetails,
+        senderPhone: senderPhone
       });
     } catch (error) {
-      console.error('❌ Error fetching consignment consolidated report:', error);
+      console.error('❌ Error fetching sender consignment details:', error);
       res.status(500).json({ 
         error: 'Internal server error', 
         message: error.message,
@@ -1393,238 +712,101 @@ class ReportController {
     }
   }
 
-  // New: Get Consignment Consolidated Report with All Required Fields
-  static async getConsignmentConsolidatedReportAggregation(req, res) {
+  // Get Traveler Report
+  static async getTravelerReport(req, res) {
     try {
-      console.log('📊 Generating Consignment Consolidated Report with MongoDB Aggregation...');
+      console.log('📊 Generating Traveler Report...');
       
-      // Get fare configuration
-      const FareConfig = require('../model/FareConfig');
-      const fareConfig = await FareConfig.findOne();
-      const margin = fareConfig?.margin || 0.2;
-      const TE = fareConfig?.TE || 0;
-      
-      console.log('🔧 Configuration loaded:', { margin, TE });
-
       // Get query parameters for pagination
       const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 100;
+      const limit = parseInt(req.query.limit) || 30;
       const skip = (page - 1) * limit;
       
       console.log('📄 Pagination params:', { page, limit, skip });
 
+      const User = require('../model/Profile');
+      const TravelHistory = require('../model/travel.history');
       const Consignment = require('../model/consignment.model');
-      const Profile = require('../model/Profile');
+      const ConsignmentToCarry = require('../model/ConsignmentToCarry.model');
       
-      console.log('🔍 Starting aggregation pipeline...');
+      console.log('🔍 Starting traveler report aggregation...');
       
-      const report = await Consignment.aggregate([
-        {
-          $lookup: {
-            from: "consignmenttocarries",
-            localField: "consignmentId",
-            foreignField: "consignmentId",
-            as: "carryInfo"
-          }
-        },
-
-        {
-          $lookup: {
-            from: "traveldetails",
-            let: { travelId: { $ifNull: [{ $arrayElemAt: ["$carryInfo.travelId", 0] }, null] } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$travelId", "$$travelId"] }
-                }
-              }
-            ],
-            as: "travelDetails"
-          }
-        },
-
-        {
-          $lookup: {
-            from: "userprofiles",
-            localField: "phoneNumber",
-            foreignField: "phoneNumber",
-            as: "senderProfile"
-          }
-        },
-
-        {
-          $lookup: {
-            from: "userprofiles",
-            let: { travelerPhone: { $arrayElemAt: ["$travelDetails.phoneNumber", 0] } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ["$phoneNumber", "$$travelerPhone"] }
-                }
-              }
-            ],
-            as: "travelerProfile"
-          }
-        },
-
+      // Step 1: Get all users (userprofiles) and extract id, name, phone number
+      // Step 2: Filter travel histories by phone number
+      // Step 3: Calculate total consignments and earnings
+      const travelerReport = await User.aggregate([
+        // Step 1: Get all users with their basic info
         {
           $project: {
-            _id: 0,
-            "Consignment ID": "$consignmentId",
-            "Consignment Status": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.status", 0] },
-                "$status"
-              ]
-            },
-            "Sender ID": "$_id",
-            "Sender Name": {
-              $ifNull: [
-                "$username",
-                {
-                  $concat: [
-                    { $ifNull: [{ $arrayElemAt: ["$senderProfile.firstName", 0] }, ""] },
-                    " ",
-                    { $ifNull: [{ $arrayElemAt: ["$senderProfile.lastName", 0] }, ""] }
-                  ]
-                }
-              ]
-            },
-            "Sender Mobile No": "$phoneNumber",
-            "Sender Address": {
-              $ifNull: [
-                "$fullstartinglocation",
-                "$startinglocation"
-              ]
-            },
-            "Total Amount Sender Paid": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.earning.senderTotalPay", 0] },
-                0
-              ]
-            },
-            "Payment Status": {
-              $cond: {
-                if: { 
-                  $in: [
-                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                    ["Delivered", "Completed", "Collected"]
-                  ]
-                },
-                then: "Paid",
-                else: "Pending"
-              }
-            },
-            "Traveler Id": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.travelId", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Acceptance Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.createdAt", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Name": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.username", 0] },
-                {
-                  $concat: [
-                    { $ifNull: [{ $arrayElemAt: ["$travelerProfile.firstName", 0] }, ""] },
-                    " ",
-                    { $ifNull: [{ $arrayElemAt: ["$travelerProfile.lastName", 0] }, ""] }
-                  ]
-                },
-                "N/A"
-              ]
-            },
-            "Traveler Mobile No": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.phoneNumber", 0] },
-                "N/A"
-              ]
-            },
-            "Traveler Address": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.Leavinglocation", 0] },
-                "N/A"
-              ]
-            },
-            "Amount to be paid to Traveler": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.earning.totalFare", 0] },
-                0
-              ]
-            },
-            "Traveler Payment Status": {
-              $cond: {
-                if: { 
-                  $in: [
-                    { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                    ["Delivered", "Completed"]
-                  ]
-                },
-                then: "Paid",
-                else: {
-                  $cond: {
-                    if: { 
-                      $eq: [
-                        { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                        "In Transit"
-                      ]
-                    },
-                    then: "Partial",
-                    else: "Pending"
-                  }
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            phoneNumber: 1
+          }
+        },
+        
+        // Step 2: Lookup travel histories by phone number
+        {
+          $lookup: {
+            from: "travelhistories",
+            localField: "phoneNumber",
+            foreignField: "phoneNumber",
+            as: "travelHistories"
+          }
+        },
+        
+        // Only include users who have travel histories
+        {
+          $match: {
+            "travelHistories.0": { $exists: true }
+          }
+        },
+        
+        // Step 3: Calculate summary statistics
+        {
+          $addFields: {
+            numberOfTravels: { $size: "$travelHistories" },
+            totalConsignments: {
+              $sum: {
+                $map: {
+                  input: "$travelHistories",
+                  as: "history",
+                  in: { $ifNull: ["$$history.consignments", 0] }
                 }
               }
-            },
-            "Travel Mode": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.travelMode", 0] },
-                "N/A"
-              ]
-            },
-            "Travel Start Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.expectedStartTime", 0] },
-                { $arrayElemAt: ["$travelDetails.travelDate", 0] },
-                "N/A"
-              ]
-            },
-            "Travel End Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$travelDetails.expectedEndTime", 0] },
-                "N/A"
-              ]
-            },
-            "Recipient Name": "$recievername",
-            "Recipient Address": {
-              $ifNull: [
-                "$fullgoinglocation",
-                "$goinglocation"
-              ]
-            },
-            "Recipient Phone no": "$recieverphone",
-            "Received Date": {
-              $ifNull: [
-                { $arrayElemAt: ["$carryInfo.dateandtimeofdelivery", 0] },
-                {
-                  $cond: {
-                    if: { 
-                      $eq: [
-                        { $ifNull: [{ $arrayElemAt: ["$carryInfo.status", 0] }, "$status"] },
-                        "Delivered"
-                      ]
-                    },
-                    then: { $arrayElemAt: ["$carryInfo.updatedAt", 0] },
-                    else: "N/A"
-                  }
-                }
-              ]
             }
+          }
+        },
+        
+        // Project the final report fields
+        {
+          $project: {
+            // Basic traveler information
+            "Traveler Id": "$_id",
+            "Name": {
+              $concat: [
+                { $ifNull: ["$firstName", ""] },
+                " ",
+                { $ifNull: ["$lastName", ""] }
+              ]
+            },
+            "Phone No": "$phoneNumber",
+            "Address": "N/A", // Will be extracted from travel histories if needed
+            
+            // Summary statistics
+            "No of Travels": "$numberOfTravels",
+            "No of Consignments": "$totalConsignments",
+            
+            // Payment status summary
+            "Status of Consignments": {
+              $cond: {
+                if: { $gt: ["$totalConsignments", 0] },
+                then: "Payment Pending", // Will be calculated separately
+                else: "No Consignments"
+              }
+            },
+            
+            "Payment": "Pending" // Will be calculated separately
           }
         },
         
@@ -1633,23 +815,70 @@ class ReportController {
         { $limit: limit }
       ]);
 
-      // Get total count for pagination
-      const totalCount = await Consignment.countDocuments();
+      // Calculate earnings separately for better performance
+      const processedReport = [];
+      for (const item of travelerReport) {
+        const phoneNumber = item["Phone No"];
+        
+        // Get travel histories for this user
+        const travelHistories = await TravelHistory.find({ phoneNumber });
+        
+        let totalEarnings = 0;
+        
+        // Calculate earnings from all consignment details
+        for (const history of travelHistories) {
+          if (history.consignmentDetails && history.consignmentDetails.length > 0) {
+            for (const consignmentDetail of history.consignmentDetails) {
+              // Get earnings from ConsignmentToCarry model
+              const carryInfo = await ConsignmentToCarry.findOne({ 
+                consignmentId: consignmentDetail.consignmentId 
+              });
+              
+              if (carryInfo && carryInfo.earning && carryInfo.earning.totalFare) {
+                totalEarnings += parseFloat(carryInfo.earning.totalFare) || 0;
+              }
+            }
+          }
+        }
+        
+        // Helper function to format amounts
+        const formatAmount = (amount) => {
+          if (amount === null || amount === undefined || amount === 'N/A') return 0;
+          return parseFloat(amount) || 0;
+        };
 
-      console.log(`✅ Aggregation report generated with ${report.length} records (page ${page})`);
+        processedReport.push({
+          "Traveler Id": item["Traveler Id"]?.toString() || "N/A",
+          "Name": item["Name"]?.trim() || "Unknown",
+          "Phone No": item["Phone No"] || "N/A",
+          "Address": item["Address"] || "N/A",
+          "No of Travels": item["No of Travels"] || 0,
+          "No of Consignments": item["No of Consignments"] || 0,
+          "Total Amount": formatAmount(totalEarnings),
+          "Status of Consignments": item["No of Consignments"] > 0 ? 
+            (totalEarnings > 0 ? "Payment Completed" : "Payment Pending") : 
+            "No Consignments",
+          "Payment": totalEarnings > 0 ? "Paid" : "Pending"
+        });
+      }
+
+      // Get total count for pagination
+      const totalCount = await User.countDocuments({
+        phoneNumber: { $in: await TravelHistory.distinct("phoneNumber") }
+      });
+
+      console.log(`✅ Traveler report generated with ${processedReport.length} records (page ${page})`);
       res.status(200).json({
-        data: report,
+        data: processedReport,
         pagination: {
-          currentPage: page,
           totalPages: Math.ceil(totalCount / limit),
           totalRecords: totalCount,
           recordsPerPage: limit,
-          hasNextPage: page < Math.ceil(totalCount / limit),
-          hasPreviousPage: page > 1
+          currentPage: page
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching consignment consolidated report:', error);
+      console.error('❌ Error fetching traveler report:', error);
       res.status(500).json({ 
         error: 'Internal server error', 
         message: error.message,
@@ -1658,213 +887,156 @@ class ReportController {
     }
   }
 
-  // New: Get Business Intelligence Report - Now uses dummy data
-  static async getBusinessIntelligenceReport(req, res) {
+  // Get Traveler Consignment Details (for expandable view)
+  static async getTravelerConsignmentDetails(req, res) {
     try {
-      console.log('📈 Generating Business Intelligence Report with dummy data...');
+      const { travelerPhone } = req.params;
       
-      // Generate dummy data
-      // const consignments = ReportController.generateDummyConsignments();
-      // const userProfiles = ReportController.generateDummyUsers();
-      // const travelDetails = ReportController.generateDummyTravelDetails();
-      // const consignmentHistory = ReportController.generateDummyConsignmentHistory();
-      // const earnings = ReportController.generateDummyEarnings();
+      if (!travelerPhone) {
+        return res.status(400).json({ error: 'Traveler phone number is required' });
+      }
 
-      // Calculate business metrics
-      const totalConsignments = consignments.length;
-      const completedConsignments = consignments.filter(c => c.status === 'Completed').length;
-      const totalRevenue = consignments.reduce((sum, c) => sum + (parseFloat(c.earning) || 0), 0);
+      console.log(`🔍 Fetching consignment details for traveler: ${travelerPhone}`);
+
+      const TravelHistory = require('../model/travel.history');
+      const Consignment = require('../model/consignment.model');
+      const ConsignmentToCarry = require('../model/ConsignmentToCarry.model');
+
+      // Step 2: Get all travel histories for this phone number
+      const travelHistories = await TravelHistory.find({ phoneNumber: travelerPhone });
       
-      const totalTravelers = userProfiles.filter(u => u.role === 'traveler').length;
-      const activeTravelers = travelDetails.length > 0 ? new Set(travelDetails.map(t => t.phoneNumber)).size : 0;
-      const totalTravelerEarnings = earnings.reduce((sum, e) => sum + (parseFloat(e.totalEarnings) || 0), 0);
-      
-      const totalSenders = new Set(consignments.map(c => c.phoneNumber)).size;
-      const totalTravels = travelDetails.length;
-      const completedTravels = travelDetails.filter(t => t.status === 'Completed').length;
-
-      // Status distribution
-      const statusDistribution = {};
-      consignments.forEach(consignment => {
-        statusDistribution[consignment.status] = (statusDistribution[consignment.status] || 0) + 1;
-      });
-
-      // Category distribution
-      const categoryDistribution = {};
-      consignments.forEach(consignment => {
-        if (consignment.category) {
-          categoryDistribution[consignment.category] = (categoryDistribution[consignment.category] || 0) + 1;
-        }
-      });
-
-      // Travel mode distribution
-      const travelModeDistribution = {};
-      travelDetails.forEach(travel => {
-        if (travel.travelMode) {
-          travelModeDistribution[travel.travelMode] = (travelModeDistribution[travel.travelMode] || 0) + 1;
-        }
-      });
-
-      // Top performers
-      const travelerEarnings = {};
-      earnings.forEach(earning => {
-        travelerEarnings[earning.phoneNumber] = earning.totalEarnings || 0;
-      });
-
-      const topTravelers = Object.entries(travelerEarnings)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 10)
-        .map(([phone, earnings]) => {
-          const user = userProfiles.find(u => u.phoneNumber === phone);
-          return {
-            name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Unknown',
-            phoneNumber: phone,
-            totalEarnings: ReportController.formatAmount(earnings)
-          };
+      if (!travelHistories || travelHistories.length === 0) {
+        return res.status(200).json({
+          data: [],
+          travelerPhone: travelerPhone,
+          message: "No travel histories found for this traveler"
         });
+      }
 
-      const senderAmounts = {};
-      consignments.forEach(consignment => {
-        const amount = parseFloat(consignment.earning) || 0;
-        senderAmounts[consignment.phoneNumber] = (senderAmounts[consignment.phoneNumber] || 0) + amount;
-      });
+      // Step 3 & 4: Extract consignment details from travel histories
+      const allConsignmentDetails = [];
+      let totalEarnings = 0;
 
-      const topSenders = Object.entries(senderAmounts)
-        .sort(([,a], [,b]) => b - a)
-        .slice(0, 10)
-        .map(([phone, amount]) => {
-          const user = userProfiles.find(u => u.phoneNumber === phone);
-          return {
-            name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Unknown',
-            phoneNumber: phone,
-            totalAmount: ReportController.formatAmount(amount)
-          };
-        });
+      for (const history of travelHistories) {
+        if (history.consignmentDetails && history.consignmentDetails.length > 0) {
+          for (const consignmentDetail of history.consignmentDetails) {
+            // Step 5: Get consignment status and payment status using consignment ID
+            const consignment = await Consignment.findOne({ 
+              consignmentId: consignmentDetail.consignmentId 
+            });
 
-      const businessReport = {
-        generatedAt: new Date().toISOString(),
-        summary: {
-          totalConsignments,
-          completedConsignments,
-          completionRate: totalConsignments > 0 ? (completedConsignments / totalConsignments) * 100 : 0,
-          totalRevenue: ReportController.formatAmount(totalRevenue),
-          totalTravelers,
-          activeTravelers,
-          totalTravelerEarnings: ReportController.formatAmount(totalTravelerEarnings),
-          totalSenders,
-          totalTravels,
-          completedTravels,
-          averageConsignmentValue: ReportController.formatAmount(totalConsignments > 0 ? totalRevenue / totalConsignments : 0)
-        },
-        distributions: {
-          statusDistribution,
-          categoryDistribution,
-          travelModeDistribution
-        },
-        topPerformers: {
-          topTravelers,
-          topSenders
-        }
-      };
+            // Step 6: Get earnings from ConsignmentToCarry model
+            const carryInfo = await ConsignmentToCarry.findOne({ 
+              consignmentId: consignmentDetail.consignmentId 
+            });
 
-      console.log('✅ Business intelligence report generated successfully');
-      res.status(200).json(businessReport);
-    } catch (error) {
-      console.error('❌ Error generating business intelligence report:', error);
-      res.status(500).json({ 
-        error: 'Internal server error', 
-        message: error.message 
-      });
-    }
-  }
+            const earnings = carryInfo?.earning?.totalFare || 0;
+            totalEarnings += parseFloat(earnings) || 0;
 
-  // New: Get Travel Details Report - Now uses dummy data
-  static async getTravelDetailsReport(req, res) {
-    try {
-      console.log('🚗 Generating Travel Details Report with dummy data...');
-      
-      // Generate dummy data
-      const travelDetails = ReportController.generateDummyTravelDetails();
-      const userProfiles = ReportController.generateDummyUsers();
-      const requestForCarry = ReportController.generateDummyRequestForCarry();
+            // Format dimensions from complex object to simple string
+            let formattedDimensions = "N/A";
+            if (carryInfo?.dimensions) {
+              try {
+                let dimensionsObj = carryInfo.dimensions;
+                
+                // If dimensions is a string, try to parse it
+                if (typeof carryInfo.dimensions === 'string') {
+                  // Handle the format "{ length: '5', breadth: '15', height: '5', unit: 'cm' }"
+                  const dimensionString = carryInfo.dimensions.trim();
+                  if (dimensionString.startsWith('{') && dimensionString.endsWith('}')) {
+                    // Convert to valid JSON by adding quotes around property names
+                    const jsonString = dimensionString
+                      .replace(/(\w+):/g, '"$1":')  // Add quotes around property names
+                      .replace(/'/g, '"');          // Replace single quotes with double quotes
+                    
+                    dimensionsObj = JSON.parse(jsonString);
+                  } else {
+                    // Try regular JSON parse
+                    dimensionsObj = JSON.parse(carryInfo.dimensions);
+                  }
+                }
+                
+                if (dimensionsObj && dimensionsObj.length && dimensionsObj.breadth && dimensionsObj.height && dimensionsObj.unit) {
+                  formattedDimensions = `${dimensionsObj.length} × ${dimensionsObj.breadth} × ${dimensionsObj.height} ${dimensionsObj.unit}`;
+                }
+              } catch (error) {
+                console.log('Error parsing dimensions:', error);
+                formattedDimensions = "N/A";
+              }
+            }
 
-             const userMap = ReportController.createUserMap(userProfiles);
-      const requestMap = {};
-      requestForCarry.forEach(request => {
-        if (!requestMap[request.travelId]) {
-          requestMap[request.travelId] = [];
-        }
-        requestMap[request.travelId].push(request);
-      });
+            // Extract travel date from expectedStartTime
+            let travelDate = "N/A";
+            if (history.expectedStartTime) {
+              try {
+                const startDate = new Date(history.expectedStartTime);
+                travelDate = startDate.toLocaleDateString('en-CA'); // Format: YYYY-MM-DD
+              } catch (error) {
+                console.log('Error parsing travel date:', error);
+                travelDate = "N/A";
+              }
+            }
+            
 
-      const travelData = travelDetails.map(travel => {
-        let traveler = userMap[travel.phoneNumber];
-        const requests = requestMap[travel.travelId] || [];
-        
-        // If traveler not found, assign a random traveler from the first 10 users
-        if (!traveler) {
-          const randomTravelerIndex = Math.floor(Math.random() * 10);
-          const randomTraveler = userProfiles[randomTravelerIndex];
-          if (randomTraveler) {
-            traveler = randomTraveler;
+            // Determine travel mode display - show vehicle type for roadways, else show travel mode
+            let travelModeDisplay = "N/A";
+            console.log('Debug - travelMode:', history.travelMode, 'vehicleType:', history.vehicleType);
+            if (history.travelMode === "roadways") {
+              if (history.vehicleType) {
+                travelModeDisplay = history.vehicleType;
+              } else {
+                travelModeDisplay = "Road Transport"; // Fallback for roadways without vehicle type
+              }
+            } else if (history.travelMode) {
+              travelModeDisplay = history.travelMode;
+            }
+            console.log('Debug - final travelModeDisplay:', travelModeDisplay);
+
+            allConsignmentDetails.push({
+              consignmentId: consignmentDetail.consignmentId || "N/A",
+              status: consignment?.status || "N/A",
+              paymentStatus: consignment?.paymentStatus || "pending",
+              weight: consignmentDetail.weight || "N/A",
+              dimensions: formattedDimensions,
+              pickup: consignmentDetail.pickup || "N/A",
+              drop: consignmentDetail.drop || "N/A",
+              timestamp: consignmentDetail.timestamp ? new Date(consignmentDetail.timestamp).toISOString() : null,
+              travelId: history.travelId || "N/A",
+              travelMode: travelModeDisplay,
+              travelDate: travelDate,
+              expectedStartTime: history.expectedStartTime || "N/A",
+              expectedEndTime: history.expectedendtime || "N/A",
+              earnings: parseFloat(earnings) || 0,
+              carryStatus: carryInfo?.status || "N/A"
+            });
           }
         }
-        
-        // Calculate statistics
-        const acceptedRequests = requests.filter(r => r.status === 'Accepted').length;
-        const totalRequests = requests.length;
-        const acceptanceRate = totalRequests > 0 ? (acceptedRequests / totalRequests) * 100 : 0;
-        
-        const totalEarning = requests
-          .filter(r => r.status === 'Accepted')
-          .reduce((sum, r) => sum + (parseFloat(r.earning) || 0), 0);
+      }
 
-        return {
-          travelId: travel.travelId,
-          travelerId: traveler?._id?.toString() || travel.phoneNumber,
-          travelerName: traveler ? `${traveler.firstName || ''} ${traveler.lastName || ''}`.trim() : 'Unknown',
-          phoneNumber: travel.phoneNumber,
-          leavingLocation: travel.Leavinglocation,
-          goingLocation: travel.Goinglocation,
-          fullFrom: travel.fullFrom,
-          fullTo: travel.fullTo,
-          travelMode: travel.travelMode,
-          travelmode_number: travel.travelmode_number,
-          travelDate: ReportController.formatDate(travel.travelDate),
-          expectedStartTime: travel.expectedStartTime,
-          expectedEndTime: travel.expectedEndTime,
-          endDate: ReportController.formatDate(travel.endDate),
-          distance: travel.distance,
-          duration: travel.duration,
-          expectedearning: ReportController.formatAmount(travel.expectedearning),
-          payableAmount: ReportController.formatAmount(travel.payableAmount),
-          weight: travel.weight,
-          TE: travel.TE,
-          discount: ReportController.formatAmount(travel.discount),
-          status: travel.status,
-          startedat: travel.startedat ? ReportController.formatDate(travel.startedat) : 'N/A',
-          endedat: travel.endedat ? ReportController.formatDate(travel.endedat) : 'N/A',
-          totalRequests: totalRequests,
-          acceptedRequests: acceptedRequests,
-          acceptanceRate: acceptanceRate.toFixed(2),
-          totalEarning: ReportController.formatAmount(totalEarning),
-          averageRating: travel.averageRating || 0,
-          totalRating: travel.totalrating || 0,
-          createdAt: ReportController.formatDate(travel.createdAt),
-          updatedAt: ReportController.formatDate(travel.updatedAt)
-        };
+      // Sort by timestamp (newest first)
+      allConsignmentDetails.sort((a, b) => {
+        if (!a.timestamp || !b.timestamp) return 0;
+        return new Date(b.timestamp) - new Date(a.timestamp);
       });
 
-      console.log(`✅ Travel details report generated with ${travelData.length} records`);
-      res.status(200).json(travelData);
+      console.log(`✅ Found ${allConsignmentDetails.length} consignments for traveler ${travelerPhone}`);
+      res.status(200).json({
+        data: allConsignmentDetails,
+        travelerPhone: travelerPhone,
+        totalEarnings: totalEarnings,
+        totalConsignments: allConsignmentDetails.length
+      });
     } catch (error) {
-      console.error('❌ Error generating travel details report:', error);
+      console.error('❌ Error fetching traveler consignment details:', error);
       res.status(500).json({ 
         error: 'Internal server error', 
-        message: error.message 
+        message: error.message,
+        timestamp: new Date().toISOString()
       });
     }
   }
 }
 
-module.exports = ReportController; 
+module.exports = ReportController;
+
+

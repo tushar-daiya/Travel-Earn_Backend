@@ -2,32 +2,44 @@ const express = require('express');
 const router = express.Router();
 const ReportController = require('../controller/ReportController');
 
-// Get Traveler Report
-router.get('/travel-history', ReportController.getTravelerReport);
+// // Get Traveler Report
+// router.get('/travel-history', ReportController.getTravelerReport);
+
+// // Get Sender Report
+// router.get('/consignment-history', ReportController.getSenderReport);
+
+// // Get Consignment Consolidated Report
+// router.get('/consignment-consolidated', ReportController.getConsignmentConsolidatedReport);
+
+// // Get Consignment Consolidated Report with MongoDB Aggregation
+// router.get('/consignment-consolidated-aggregation', ReportController.getConsignmentConsolidatedReportAggregation);
+
+// // New Enhanced Endpoints
+// // Get Business Intelligence Report
+// // router.get('/business-intelligence', ReportController.getBusinessIntelligenceReport);
+
+// // Get Travel Details Report
+// router.get('/travel-details', ReportController.getTravelDetailsReport);
+
+// // Get Enhanced Traveler Report (with more details)
+// router.get('/traveler-report-enhanced', ReportController.getTravelerReport);
+
+// // Get Enhanced Sender Report (with more details)
+// router.get('/sender-report-enhanced', ReportController.getSenderReport);
+
+// // Get Enhanced Consignment Consolidated Report (with more details)
+router.get('/consignment-consolidated-report', ReportController.getConsignmentConsolidatedReport);
 
 // Get Sender Report
-router.get('/consignment-history', ReportController.getSenderReport);
+router.get('/sender-report', ReportController.getSenderReport);
 
-// Get Consignment Consolidated Report
-router.get('/consignment-consolidated', ReportController.getConsignmentConsolidatedReport);
+// Get Sender Consignment Details (for expandable view)
+router.get('/sender-consignment-details/:senderPhone', ReportController.getSenderConsignmentDetails);
 
-// Get Consignment Consolidated Report with MongoDB Aggregation
-router.get('/consignment-consolidated-aggregation', ReportController.getConsignmentConsolidatedReportAggregation);
+// Get Traveler Report
+router.get('/traveler-report', ReportController.getTravelerReport);
 
-// New Enhanced Endpoints
-// Get Business Intelligence Report
-// router.get('/business-intelligence', ReportController.getBusinessIntelligenceReport);
-
-// Get Travel Details Report
-router.get('/travel-details', ReportController.getTravelDetailsReport);
-
-// Get Enhanced Traveler Report (with more details)
-router.get('/traveler-report-enhanced', ReportController.getTravelerReport);
-
-// Get Enhanced Sender Report (with more details)
-router.get('/sender-report-enhanced', ReportController.getSenderReport);
-
-// Get Enhanced Consignment Consolidated Report (with more details)
-router.get('/consignment-consolidated-enhanced', ReportController.getConsignmentConsolidatedReport);
+// Get Traveler Consignment Details (for expandable view)
+router.get('/traveler-consignment-details/:travelerPhone', ReportController.getTravelerConsignmentDetails);
 
 module.exports = router; 

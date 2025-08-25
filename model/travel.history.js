@@ -11,6 +11,7 @@ const travelhistorySchema = new mongoose.Schema(
         travelId: { type: String, ref: travel },
         travelMode: { type: String, ref: travel },
         travelmode_number:{type:String, ref:travel},
+        vehicleType:{type: String},
         status: {
             type: String,
             enum: ["UPCOMING",  "CANCELLED", "ENDED","STARTED"],

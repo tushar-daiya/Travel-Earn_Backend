@@ -493,47 +493,48 @@ module.exports.getTotalUsers = async (req, res) => {
 
 module.exports.getTotalEarnings = async (req, res) => {
   try {
-    const result = await Earning.aggregate([
-      { $unwind: "$transactions" },
-      {
-        $match: {
-          "transactions.status": { $regex: /^completed$/i },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalEarnings: {
-            $sum: {
-              $toDouble: "$transactions.amount",
-            },
-          },
-          transactions: {
-            $push: {
-              date: {
-                $dateToString: {
-                  format: "%Y-%m-%d",
-                  date: "$transactions.timestamp",
-                },
-              },
-              amount: { $toDouble: "$transactions.amount" },
-              paymentId: "$transactions.paymentId",
-              title: "$transactions.title",
-              travelId: "$transactions.travelId",
-              status: "$transactions.status",
-              method: "$transactions.paymentMethod",
-            },
-          },
-        },
-      },
-    ]);
+    // Fetch all earnings documents
+    const allEarnings = await Earning.find({});
+    
+    let totalEarnings = 0;
+    const allTransactions = [];
 
-    const response = result[0] || { totalEarnings: 0, transactions: [] };
+    // Iterate over all earnings documents
+    for (const earning of allEarnings) {
+      // Iterate over all transactions in each earning
+      for (const transaction of earning.transactions) {
+        // Check if transaction status is completed (case-insensitive)
+        if (transaction.status && transaction.status.toLowerCase() === 'completed') {
+          // Sum up the total fare from each transaction
+          const transactionAmount = parseFloat(transaction.totalFare) || parseFloat(transaction.amount) || 0;
+          totalEarnings += transactionAmount;
+          
+          // Add transaction details to the array
+          allTransactions.push({
+            date: transaction.timestamp ? new Date(transaction.timestamp).toISOString().split('T')[0] : 'N/A',
+            amount: transactionAmount,
+            paymentId: transaction.paymentId || 'N/A',
+            title: transaction.title || 'N/A',
+            travelId: transaction.travelId || 'N/A',
+            status: transaction.status || 'N/A',
+            method: transaction.paymentMethod || 'N/A',
+            phoneNumber: earning.phoneNumber || 'N/A'
+          });
+        }
+      }
+    }
+
+    // Sort transactions by date (newest first)
+    allTransactions.sort((a, b) => {
+      if (a.date === 'N/A' || b.date === 'N/A') return 0;
+      return new Date(b.date) - new Date(a.date);
+    });
 
     res.status(200).json({
       status: "success",
-      totalEarnings: response.totalEarnings,
-      data: response.transactions,
+      totalEarnings: totalEarnings,
+      data: allTransactions,
+      totalTransactions: allTransactions.length
     });
   } catch (error) {
     console.error("Error fetching total earnings:", error);

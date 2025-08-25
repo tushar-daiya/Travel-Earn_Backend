@@ -17,6 +17,7 @@ const TraveldetailsSchema = new mongoose.Schema({
     lng: { type: Number }
   },
   distance: { type: String },
+  vehicleType: {type: String},
   duration:{type:String},
   travelMode: { type: String},
   travelmode_number:{type:String},
