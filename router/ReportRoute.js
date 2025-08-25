@@ -16,7 +16,7 @@ router.get('/consignment-consolidated-aggregation', ReportController.getConsignm
 
 // New Enhanced Endpoints
 // Get Business Intelligence Report
-router.get('/business-intelligence', ReportController.getBusinessIntelligenceReport);
+// router.get('/business-intelligence', ReportController.getBusinessIntelligenceReport);
 
 // Get Travel Details Report
 router.get('/travel-details', ReportController.getTravelDetailsReport);

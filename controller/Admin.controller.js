@@ -10,6 +10,7 @@ const Request = require("../model/consignment.model");
 const travelhistory = require("../model/travel.history");
 const getDateRange = require("../utils/getDateRange");
 const mongoose = require("mongoose");
+const ConsignmentToCarry = require("../model/ConsignmentToCarry.model");
 
 module.exports.login = async (req, res) => {
   try {
@@ -623,212 +624,42 @@ module.exports.getUserTravelDetails = async (req, res) => {
   const searchRegex = new RegExp(search, "i");
 
   try {
-    // Start the aggregation pipeline
-    const pipeline = [
-      { $unwind: "$transactions" },
-      { $match: { "transactions.status": "Completed" } },
-      {
-        $addFields: {
-          normalizedPhone: {
-            $replaceAll: {
-              input: "$phoneNumber",
-              find: " ",
-              replacement: "",
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "userprofiles",
-          let: { phone: "$normalizedPhone" },
-          pipeline: [
-            {
-              $addFields: {
-                normalizedUserPhone: {
-                  $replaceAll: {
-                    input: "$phoneNumber",
-                    find: " ",
-                    replacement: "",
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
-              },
-            },
-          ],
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-    ];
-
-    // If there is a search term, add a $match filter to the pipeline
-    if (search) {
-      pipeline.push({
-        $match: {
+    // Build search filter
+    const searchFilter = search
+      ? {
           $or: [
-            { "user.firstName": searchRegex },
-            { "user.lastName": searchRegex },
-            { "user.email": searchRegex },
-            { "user.phoneNumber": searchRegex },
+            { firstName: searchRegex },
+            { lastName: searchRegex },
+            { email: searchRegex },
+            { phoneNumber: searchRegex },
             {
               $expr: {
                 $regexMatch: {
-                  input: {
-                    $concat: ["$user.firstName", " ", "$user.lastName"],
-                  },
+                  input: { $concat: ["$firstName", " ", "$lastName"] },
                   regex: searchRegex,
                 },
               },
             },
           ],
-        },
-      });
-    }
+        }
+      : {};
 
-    // Continue with the rest of the aggregation pipeline
-    pipeline.push(
-      {
-        $lookup: {
-          from: "traveldetails",
-          localField: "transactions.travelId",
-          foreignField: "travelId",
-          as: "travel",
-        },
-      },
-      { $unwind: { path: "$travel", preserveNullAndEmptyArrays: true } },
-      {
-        $addFields: {
-          distanceNumber: {
-            $cond: {
-              if: { $ifNull: ["$travel.distance", false] },
-              then: {
-                $toDouble: {
-                  $getField: {
-                    field: "match",
-                    input: {
-                      $regexFind: {
-                        input: "$travel.distance",
-                        regex: /[\d.]+/,
-                      },
-                    },
-                  },
-                },
-              },
-              else: 0,
-            },
-          },
-          transactionAmount: { $toDouble: "$transactions.amount" },
-        },
-      },
-      {
-        $group: {
-          _id: "$user._id",
-          username: {
-            $first: { $concat: ["$user.firstName", " ", "$user.lastName"] },
-          },
-          email: { $first: "$user.email" },
-          phoneNumber: { $first: "$user.phoneNumber" },
-          totalEarnings: { $sum: "$transactionAmount" },
-          totalDistance: { $sum: "$distanceNumber" },
-        },
-      },
-      {
-        $project: {
-          id: "$_id",
-          username: 1,
-          email: 1,
-          phoneNumber: 1,
-          totalEarnings: 1,
-          totalDistance: 1,
-        },
-      },
-      { $skip: skip },
-      { $limit: limit }
-    );
+    const users = await userprofiles
+      .find(searchFilter)
+      .select("firstName lastName email phoneNumber totalRating")
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    const result = await Earning.aggregate(pipeline);
+    const result = users.map(user => ({
+      id: user._id,
+      username: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      totalRating: user.totalRating || 0,
+    }));
 
-    // COUNT total results after search filter (optional)
-    const countAgg = await Earning.aggregate([
-      { $unwind: "$transactions" },
-      { $match: { "transactions.status": "Completed" } },
-      {
-        $addFields: {
-          normalizedPhone: {
-            $replaceAll: {
-              input: "$phoneNumber",
-              find: " ",
-              replacement: "",
-            },
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "userprofiles",
-          let: { phone: "$normalizedPhone" },
-          pipeline: [
-            {
-              $addFields: {
-                normalizedUserPhone: {
-                  $replaceAll: {
-                    input: "$phoneNumber",
-                    find: " ",
-                    replacement: "",
-                  },
-                },
-              },
-            },
-            {
-              $match: {
-                $expr: { $eq: ["$normalizedUserPhone", "$$phone"] },
-              },
-            },
-          ],
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-      ...(search
-        ? [
-            {
-              $match: {
-                $or: [
-                  { "user.firstName": searchRegex },
-                  { "user.lastName": searchRegex },
-                  { "user.email": searchRegex },
-                  { "user.phoneNumber": searchRegex },
-                  {
-                    $expr: {
-                      $regexMatch: {
-                        input: {
-                          $concat: ["$user.firstName", " ", "$user.lastName"],
-                        },
-                        regex: searchRegex,
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          ]
-        : []),
-      {
-        $group: {
-          _id: "$user._id",
-        },
-      },
-      {
-        $count: "total",
-      },
-    ]);
-
-    const totalCount = countAgg[0]?.total || 0;
+    const totalCount = await userprofiles.countDocuments(searchFilter);
 
     res.status(200).json({
       success: true,
@@ -920,6 +751,7 @@ module.exports.deleteProfileByUserId = async (req, res) => {
   }
 };
 
+
 module.exports.getSalesDashboard = async (req, res) => {
   try {
     const { fromDate, toDate, periodType } = req.query;
@@ -932,78 +764,106 @@ module.exports.getSalesDashboard = async (req, res) => {
       ({ startDate, endDate } = getDateRange(periodType));
     }
 
-    const senderMatch = {};
-    const travellerMatch = {};
-
+    const match = { status: "Delivered" };
     if (startDate && endDate) {
-      senderMatch.createdAt = { $gte: startDate, $lte: endDate };
-      travellerMatch.createdAt = { $gte: startDate, $lte: endDate };
+      match.createdAt = { $gte: startDate, $lte: endDate };
     }
+    const cons= await ConsignmentToCarry.find();
+    console.log(cons)
+    const agg = await ConsignmentToCarry.aggregate([
+      { $match: match },
+      {
+        $lookup: {
+          from: "traveldetails",
+          localField: "travelId",
+          foreignField: "travelId",
+          as: "travel",
+        },
+      },
+      { $unwind: "$travel" },
 
-    const senderAgg = await Consignment.aggregate([
-      { $match: senderMatch },
       {
         $group: {
-          _id: null,
-          totalNo: { $sum: 1 },
-          totalAmount: {
+          _id: "$travel.travelMode",
+          senderTotal: {
             $sum: {
               $cond: [
-                { $ifNull: ["$earning", false] },
-                { $toDouble: "$earning" },
+                { $ifNull: ["$earning.senderTotalPay", false] },
+                { $toDouble: "$earning.senderTotalPay" },
                 0,
               ],
             },
           },
-        },
-      },
-    ]);
-
-    const travellerAgg = await Traveldetails.aggregate([
-      { $match: travellerMatch },
-      {
-        $group: {
-          _id: null,
-          totalNo: { $sum: 1 },
-          totalAmount: {
+          travellerTotal: {
             $sum: {
               $cond: [
-                { $ifNull: ["$expectedearning", false] },
-                { $toDouble: "$expectedearning" },
+                { $ifNull: ["$earning.totalFare", false] },
+                { $toDouble: "$earning.totalFare" },
                 0,
               ],
             },
           },
+          senderCount: { 
+            $sum: { 
+              $cond: [
+                { $and: [
+                  { $ifNull: ["$earning.senderTotalPay", false] },
+                  { $gt: [{ $toDouble: "$earning.senderTotalPay" }, 0] }
+                ]}, 
+                1, 
+                0
+              ] 
+            } 
+          },
+          travellerCount: { 
+            $sum: { 
+              $cond: [
+                { $and: [
+                  { $ifNull: ["$earning.totalFare", false] },
+                  { $gt: [{ $toDouble: "$earning.totalFare" }, 0] }
+                ]}, 
+                1, 
+                0
+              ] 
+            } 
+          },
+          totalConsignments: { $sum: 1 },
         },
       },
     ]);
+    console.log(agg)
 
-    const senderData = senderAgg[0] || { totalNo: 0, totalAmount: 0 };
-    const travellerData = travellerAgg[0] || { totalNo: 0, totalAmount: 0 };
-
-    const dashboardData = [
-      {
-        totalNo: senderData.totalNo,
-        transactionType: "Sender",
-        amount: senderData.totalAmount.toFixed(2),
-      },
-      {
-        totalNo: travellerData.totalNo,
-        transactionType: "Traveller",
-        amount: travellerData.totalAmount.toFixed(2),
-      },
-    ];
+    // Flatten into table-like rows
+    const tableData = [];
+    agg.forEach((row) => {
+      tableData.push({
+        type: "Sender",
+        mode: row._id,
+        amount: row.senderTotal.toFixed(2),
+        count: row.senderCount,
+        totalConsignments: row.totalConsignments
+      });
+      tableData.push({
+        type: "Traveller",
+        mode: row._id,
+        amount: row.travellerTotal.toFixed(2),
+        count: row.travellerCount,
+        totalConsignments: row.totalConsignments
+      });
+    });
 
     res.json({
       success: true,
       filters: { startDate, endDate },
-      data: dashboardData,
+      data: tableData,
     });
   } catch (error) {
     console.error("Error fetching sales dashboard:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+
+
 
 module.exports.getRegionBreakdown = async (req, res) => {
   try {
@@ -1017,51 +877,80 @@ module.exports.getRegionBreakdown = async (req, res) => {
       ({ startDate, endDate } = getDateRange(periodType));
     }
 
-    let match = {};
+    let match = { status: "Delivered" }; // Only consider delivered consignments
     if (startDate && endDate) {
       match.createdAt = { $gte: startDate, $lte: endDate };
     }
 
-    let Model;
-    let regionField;
-    let amountField;
-
-    if (type === "Sender") {
-      Model = Consignment;
-      regionField = "$startinglocation";
-      amountField = "$earning";
-    } else if (type === "Traveller") {
-      Model = Traveldetails;
-      regionField = "$Leavinglocation";
-      amountField = "$expectedearning";
-    } else {
-      return res.status(400).json({ success: false, message: "Invalid type" });
+    if (!type || (type !== "Sender" && type !== "Traveller")) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid type. Must be 'Sender' or 'Traveller'" 
+      });
     }
 
-    const breakdown = await Model.aggregate([
+    const breakdown = await ConsignmentToCarry.aggregate([
       { $match: match },
+      
+      // Lookup travel details to get travelMode
+      {
+        $lookup: {
+          from: "traveldetails",
+          localField: "travelId",
+          foreignField: "travelId",
+          as: "travel",
+        },
+      },
+      { $unwind: "$travel" },
+
+      // Group by region (startinglocation) and travel mode
       {
         $group: {
-          _id: { state: regionField, mode: "$travelMode" },
-          totalAmount: {
+          _id: { 
+            state: "$startinglocation", 
+            mode: "$travel.travelMode" 
+          },
+          senderTotal: {
             $sum: {
               $cond: [
-                { $ifNull: [amountField, false] },
-                { $toDouble: amountField },
+                { $ifNull: ["$earning.senderTotalPay", false] },
+                { $toDouble: "$earning.senderTotalPay" },
                 0,
               ],
             },
           },
+          travellerTotal: {
+            $sum: {
+              $cond: [
+                { $ifNull: ["$earning.totalFare", false] },
+                { $toDouble: "$earning.totalFare" },
+                0,
+              ],
+            },
+          },
+          consignmentCount: { $sum: 1 }
         },
       },
+
+      // Project based on type requested
       {
         $project: {
           stateWise: "$_id.state",
           modeOfTravel: "$_id.mode",
-          totalAmount: 1,
+          totalAmount: {
+            $cond: {
+              if: { $eq: [type, "Sender"] },
+              then: "$senderTotal",
+              else: "$travellerTotal"
+            }
+          },
+          consignmentCount: 1,
           _id: 0,
         },
       },
+
+      // Sort by totalAmount descending
+      { $sort: { totalAmount: -1 } }
     ]);
 
     res.json({
