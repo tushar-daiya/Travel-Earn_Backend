@@ -11,13 +11,27 @@ const helmet = require('helmet')
 dotenv.config();
 const app = express();
 
-// CORS Configuration - Restricting to a specific domain
+// CORS Configuration - Allowing multiple domains
 const corsOptions = {
-  origin: 'https://admin.timestringssystem.com', // Only allow this domain
-  // methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
-  // allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://admin.timestringssystem.com',
+      'https://www.timestringssystem.com'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
   credentials: true, // If using cookies or authentication headers
-  // optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
 app.use(express.json());
