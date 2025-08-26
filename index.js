@@ -11,9 +11,28 @@ const helmet = require('helmet')
 dotenv.config();
 const app = express();
 
-// CORS Configuration - Restricting to a specific domain
+// CORS Configuration - Allowing multiple domains
 const corsOptions = {
-  origin: 'https://admin.timestringssystem.com', // Only allow this domain
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://admin.timestringssystem.com',
+      'https://www.timestringssystem.com'
+    ];
+    
+    console.log('CORS check - Request origin:', origin);
+    console.log('CORS check - Allowed origins:', allowedOrigins);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('CORS check - Origin allowed:', origin);
+      callback(null, true);
+    } else {
+      console.log('CORS check - Origin blocked:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
   allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
   credentials: true, // If using cookies or authentication headers
@@ -96,6 +115,19 @@ app.get('/health', (req, res) => {
 
 app.get('/', (req, res) => {
   res.send('Welcome to the server!');
+});
+
+// Test endpoint to verify CORS headers
+app.get('/test-cors', (req, res) => {
+  res.json({ 
+    message: 'CORS test successful',
+    origin: req.headers.origin,
+    corsHeaders: {
+      'Access-Control-Allow-Origin': res.getHeader('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Methods': res.getHeader('Access-Control-Allow-Methods'),
+      'Access-Control-Allow-Headers': res.getHeader('Access-Control-Allow-Headers')
+    }
+  });
 });
 
 app.listen(PORT, () => {
