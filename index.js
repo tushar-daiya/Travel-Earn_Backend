@@ -14,21 +14,20 @@ const app = express();
 // CORS Configuration - Restricting to a specific domain
 const corsOptions = {
   origin: 'https://admin.timestringssystem.com', // Only allow this domain
-  methods: 'GET,POST,PUT,DELETE', // Allowed methods
-  allowedHeaders: 'Content-Type, Authorization', // Allowed headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
   credentials: true, // If using cookies or authentication headers
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
 
 app.use(express.json());
-
-
 
 // Middlewares
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(helmet());
-app.use(cors({corsOptions}));
+app.use(cors(corsOptions));
 
 // Handle Preflight OPTIONS request (for methods other than GET, POST)
 app.options('*', cors(corsOptions));
